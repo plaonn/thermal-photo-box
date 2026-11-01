@@ -1,0 +1,16 @@
+[project]
+name = "thermal-photo-box"
+version = "0.1.0"
+description = "Experiments in photo printing on ESC/POS thermal printers"
+requires-python = ">=3.10"
+dependencies = ["pillow>=10", "numpy>=1.24", "python-escpos[usb]>=3.1"]
+
+[project.scripts]
+thermal-photo-box = "thermal_photo_box.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
