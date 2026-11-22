@@ -43,6 +43,12 @@ On the tested portrait and paper, **Jarvis–Judice–Ninke (JJN)** with density
 
 See [XP-80T experiment log](docs/experiments-xp80t.md) for the device parameters, density commands, settings, alternatives tested and limitations.
 
+For an on-screen comparison of the methods, see the [dithering comparison](docs/dither-comparison.md). It uses a public-domain sample photo and shows previews, not printed results.
+
+![Enlarged crops of each dithering method](docs/images/astronaut/detail.png)
+
+The comparison scripts are in [`experiments/`](experiments/).
+
 ## Project scope
 
 - Image preprocessing and binary raster generation
@@ -50,7 +56,7 @@ See [XP-80T experiment log](docs/experiments-xp80t.md) for the device parameters
 - Empirical printer-density experiments and reproducible comparisons
 - Additional printer models and processing algorithms may be added later; they are not claimed as supported now
 
-External reference implementations (e.g. [dalpil/structure-aware-dithering](https://github.com/dalpil/structure-aware-dithering)) are **not** included. Private test portraits, USB serial numbers and photos of identifiable people are not included.
+External reference implementations (e.g. [dalpil/structure-aware-dithering](https://github.com/dalpil/structure-aware-dithering)) are **not** included. Private test portraits, USB serial numbers and private photos of people are not included. The only photo included is a public-domain NASA sample; see its [attribution](docs/dither-comparison.md#sample-image).
 
 ## License
 
