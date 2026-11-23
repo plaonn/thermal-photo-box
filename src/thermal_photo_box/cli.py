@@ -94,6 +94,16 @@ def main():
     send.add_argument("--density", type=int, choices=range(1, 9), default=None)
     send.add_argument("--cut", action="store_true")
 
+    sim = commands.add_parser("simulate", help="Approximate on-paper look of a 1-bit PNG (uncalibrated model)")
+    sim.add_argument("image", type=Path)
+    sim.add_argument("--output", type=Path, help="Output PNG (default: <image>-simulated.png)")
+    sim.add_argument("--scale", type=int, default=8, help="Output pixels per printer dot")
+    sim.add_argument("--radius", type=float, default=0.75, help="Dot radius in dot pitches")
+    sim.add_argument("--aspect", type=float, default=1.15, help="Vertical/horizontal dot radius ratio")
+    sim.add_argument("--paper", type=int, default=245, help="Paper grey level")
+    sim.add_argument("--ink", type=int, default=35, help="Ink grey level")
+    sim.add_argument("--blur", type=float, default=0.10, help="Edge softness in dot pitches")
+
     density = commands.add_parser("density", help="Set persistent printer density (experimental)")
     density.add_argument("level", type=int, choices=range(1, 9))
 
@@ -108,6 +118,18 @@ def main():
         gray.save(gray_path)
         dither(gray, args.method).save(result_path)
         print(f"Saved {gray_path} and {result_path}; no printing performed")
+        return
+
+    if args.command == "simulate":
+        from .simulate import DotModel, simulate
+        if args.scale < 1 or args.radius <= 0 or args.aspect <= 0 or args.blur < 0:
+            parser.error("scale, radius and aspect must be positive; blur cannot be negative")
+        model = DotModel(args.radius, args.aspect, args.paper, args.ink, args.blur)
+        with Image.open(args.image) as src:
+            result = simulate(src, args.scale, model)
+        output = args.output or args.image.with_name(args.image.stem + "-simulated.png")
+        result.save(output, optimize=True)
+        print(f"Saved {output}; uncalibrated approximation, not a print")
         return
 
     if args.command == "print":

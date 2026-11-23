@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 from thermal_photo_box.cli import WIDTH, open_printer, set_density
@@ -26,7 +27,7 @@ def load_binary(path):
         gray = source.convert("L")
     if gray.width != WIDTH:
         raise ValueError(f"{path}: expected {WIDTH}px, got {gray.width}px")
-    if not set(gray.getdata()).issubset({0, 255}):
+    if not set(np.unique(np.asarray(gray)).tolist()).issubset({0, 255}):
         raise ValueError(f"{path}: not a binary image")
     return gray.convert("1", dither=Image.Dither.NONE)
 

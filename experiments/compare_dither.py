@@ -12,9 +12,10 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from thermal_photo_box.cli import JJN_KERNEL, WIDTH, error_diffusion, open_printer, preprocess, set_density
+from thermal_photo_box.simulate import DotModel, simulate
 
 FS_KERNEL = ((1, 0, 7 / 16), (-1, 1, 3 / 16), (0, 1, 5 / 16), (1, 1, 1 / 16))
 
@@ -107,10 +108,11 @@ LABELS = {
 }
 
 
-def detail_sheet(source, images, box, scale, columns=3):
+def detail_sheet(source, images, box, scale, columns=3, model=None):
     """Source crop on the first row, then dithered crops in a grid.
 
     Crops are enlarged with nearest-neighbour scaling so individual dots stay visible.
+    With `model`, each dithered crop is instead rendered by the dot simulator.
     """
     left, top, size = box
     cell = size * scale
@@ -123,8 +125,15 @@ def detail_sheet(source, images, box, scale, columns=3):
     draw = ImageDraw.Draw(sheet)
 
     def place(name, image, x, y):
-        crop = image.convert("L").crop((left, top, left + size, top + size))
-        sheet.paste(crop.resize((cell, cell), Image.Resampling.NEAREST), (x, y + label_h))
+        if model is not None and image.mode == "1":
+            # Simulate with one dot of margin so edge dots see their neighbours.
+            padded = ImageOps.expand(image, border=2, fill=1)  # white margin outside the image
+            crop = padded.crop((left, top, left + size + 4, top + size + 4))
+            crop = simulate(crop, scale, model).crop((2 * scale, 2 * scale, (size + 2) * scale, (size + 2) * scale))
+        else:
+            crop = image.convert("L").crop((left, top, left + size, top + size))
+            crop = crop.resize((cell, cell), Image.Resampling.NEAREST)
+        sheet.paste(crop, (x, y + label_h))
         draw.text((x, y), LABELS.get(name, name), fill=0, font=font)
 
     place(source[0], source[1], (width - cell) // 2, pad)
@@ -145,6 +154,8 @@ def main():
         help="Also write detail.png with enlarged square crops at this position (576-px coordinates)",
     )
     parser.add_argument("--detail-scale", type=int, default=3)
+    parser.add_argument("--simulate", action="store_true",
+                        help="With --detail, also write detail-simulated.png using the default dot model")
     parser.add_argument("--print", dest="do_print", action="store_true", help="Print results over USB")
     parser.add_argument("--density", type=int, choices=range(1, 9), help="Send the persistent density command first")
     args = parser.parse_args()
@@ -165,6 +176,11 @@ def main():
     if args.detail:
         path = args.output / "detail.png"
         detail_sheet(("grayscale", gray), results, args.detail, args.detail_scale).save(path, optimize=True)
+        print(f"  Saved: {path}")
+
+    if args.detail and args.simulate:
+        path = args.output / "detail-simulated.png"
+        detail_sheet(("grayscale", gray), results, args.detail, args.detail_scale, model=DotModel()).save(path, optimize=True)
         print(f"  Saved: {path}")
 
     if not args.do_print:
