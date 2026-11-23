@@ -113,13 +113,53 @@ Mean over the eight samples; all values are in [improved.csv](improved.csv).
 | | 0.75 | −12.3 | 6.9 | 6.4 | 0.22 | 0.135 |
 
 - **Model-based diffusion has the best tone at every radius**, even away from the radius it was designed for (1.1 against 2.7 for JJN at 0.65, 3.8 against 7.7 at 0.45). It is also the only method whose bias does not shift by a full 10–13 L\* per 0.1 of radius at the light end.
-- **But it draws lines.** Texture is about twice JJN's, and the sheets show why: because a dot next to existing dots adds less darkness, the method prefers to grow chains, and flat mid and dark tones turn into vertical and diagonal stripes (the rocket sky below). The metrics understate this; it is clearly visible. Noise 64 breaks the stripes into worms and lowers the periodic score below JJN + noise 64 at every radius, but texture stays high. Not usable as is; it would need a penalty for chains, or a model that is not causal row by row.
+- **But it draws lines.** Texture is about twice JJN's, and the sheets show why: because a dot next to existing dots adds less darkness, the method prefers to grow chains, and flat mid and dark tones turn into vertical and diagonal stripes (the rocket sky below). The metrics understate this; it is clearly visible. Noise 64 breaks the stripes into worms and lowers the periodic score below JJN + noise 64 at every radius, but texture stays high. Not usable as is; see [removing the stripes](#removing-the-stripes) below.
 - **A shared-interaction variant failed.** Splitting each neighbour interaction between the two dots (half each, undecided neighbours weighted by the local darkness) printed 15 L\* too dark: heat development is a threshold effect, so the interactions are not pairwise.
 - **Paired shadow holes** lower the directional score at large radii (0.18 against 0.21 at 0.75) and periodic structure at every radius, but raise texture by about 1–2 at every radius and make the print lighter. A trade, not a clear gain.
 - **7/8 error** helps tone only at 0.55 (3.3 against 3.5) and is worse at 0.65 and above (4.0 against 2.9 at 0.65), with more periodic structure, like Atkinson.
 - **Adaptive noise** is within 0.3 L\* bias and 0.1 on every other metric of JJN + noise 64. Weaker noise at edges changes nothing measurable.
 
-**JJN + noise 64 remains the safest choice.** Model-based diffusion is the only idea with a large tone gain and is worth pursuing, but only if its stripes can be removed.
+### Removing the stripes
+
+Two counter-measures were added to model-based diffusion and compared the same way ([chain.csv](chain.csv)):
+
+- **Serpentine:** odd rows are processed right to left.
+- **Chain penalty 0.5:** the threshold is raised by half the darkness a dot saves by being next to existing dots. The threshold is then the same as for an isolated dot, so the decision no longer prefers neighbours, while the error is still measured against the predicted print. On two samples, 0.25 still left stripes and 0.75 added texture, so 0.5 was compared in full.
+
+| Method | Radius | bias | tone | texture | directional | periodic |
+| --- | --- | --- | --- | --- | --- | --- |
+| JJN + noise 64 | 0.45 | +24.1 | 7.7 | 5.8 | 0.18 | 0.107 |
+| | 0.55 | +11.9 | 3.5 | 5.5 | 0.17 | 0.048 |
+| | 0.65 | −1.4 | 2.9 | 6.2 | 0.18 | 0.062 |
+| | 0.75 | −12.5 | 7.0 | 6.3 | 0.21 | 0.135 |
+| JJN, model-based | 0.45 | +16.0 | 3.8 | 11.6 | 0.31 | 0.080 |
+| | 0.55 | +8.1 | 2.7 | 11.8 | 0.32 | 0.077 |
+| | 0.65 | +0.3 | 1.1 | 9.0 | 0.32 | 0.073 |
+| | 0.75 | −10.8 | 5.8 | 7.3 | 0.28 | 0.065 |
+| model-based, serpentine | 0.45 | +16.3 | 4.0 | 11.7 | 0.34 | 0.097 |
+| | 0.55 | +8.5 | 2.7 | 12.0 | 0.35 | 0.089 |
+| | 0.65 | +0.4 | 1.1 | 9.1 | 0.35 | 0.080 |
+| | 0.75 | −11.1 | 5.7 | 7.1 | 0.27 | 0.072 |
+| model-based, serpentine + chain penalty | 0.45 | +33.0 | 14.4 | 6.7 | 0.25 | 0.187 |
+| | 0.55 | +20.4 | 10.0 | 6.2 | 0.22 | 0.105 |
+| | 0.65 | +3.4 | 4.3 | 6.7 | 0.23 | 0.034 |
+| | 0.75 | −12.7 | 6.8 | 6.0 | 0.21 | 0.092 |
+| model-based, serpentine + chain penalty + noise 64 | 0.45 | +31.6 | 13.4 | 6.7 | 0.23 | 0.171 |
+| | 0.55 | +19.3 | 9.2 | 6.6 | 0.21 | 0.092 |
+| | 0.65 | +2.7 | 4.1 | 7.2 | 0.20 | 0.046 |
+| | 0.75 | −13.0 | 6.6 | 6.5 | 0.21 | 0.092 |
+
+- **Serpentine alone changes nothing.** The diagonal stripes straighten into vertical ones (directional rises slightly). The stripes come from the preference for neighbours, not from the scan direction.
+- **The penalty removes the stripes**, and texture falls to JJN's level. In the crops, the dark areas look like JJN + noise 64.
+- **But the tone gain goes with them**, and the method becomes more sensitive to the dot size than JJN. With the penalty, most dots are isolated, and the model expects an isolated dot to develop the area it has at the design radius 0.65. With smaller real dots, each develops much less, so the print comes out far too light (+33 L\* at 0.45, against +24 for JJN). Without the penalty, chained dots overlap, and their area depends less on the radius.
+
+So the tone gain of model-based diffusion came from the chains themselves. A version without stripes would only pay off once the real dot size is measured, and even at its design radius it is not better than JJN + noise 64 (tone 4.3 against 2.9).
+
+![rocket: enlarged crop, model-based variants at four radii](images/chain/rocket-detail.jpg)
+
+![patches: enlarged crop, model-based variants at four radii](images/chain/patches-detail.jpg)
+
+**JJN + noise 64 remains the safest choice.** Model-based diffusion has the only large tone gain, but it depends on the stripes: removing them removes the gain.
 
 ### Sheets
 
@@ -200,6 +240,8 @@ Jump to: [astronaut](#astronaut) · [sally-ride](#sally-ride) · [earthrise](#ea
 python experiments/candidates.py --output docs/images/candidates --csv docs/candidates.csv   # a few minutes
 python experiments/candidates.py --methods jjn jjn-tm64 jjn-model jjn-model-tm64 jjn-tm64-pairs jjn-tm64-loss jjn-tm64-adaptive \
     --output output/improved --csv docs/improved.csv   # improvements; copy the rocket, sally-ride and patches sheets to docs/images/improved
+python experiments/candidates.py --methods jjn jjn-tm64 jjn-model jjn-model-serp jjn-model-pen jjn-model-pen-tm64 \
+    --output output/chain --csv docs/chain.csv   # stripe removal; copy the rocket and patches crops to docs/images/chain
 ```
 
 The samples are downloaded on first use and checked against pinned SHA-256 hashes; see [`experiments/benchmark.py`](../experiments/benchmark.py) for their sources and licences.

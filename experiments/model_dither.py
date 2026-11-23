@@ -70,35 +70,47 @@ def target_coverage(reference, model=DotModel()):
     return np.clip((paper - y) / (paper - ink), 0.0, 1.0)
 
 
-def model_jjn(reference, radius=DESIGN_RADIUS, noise=0.0, kernel=JJN_KERNEL):
+def model_jjn(reference, radius=DESIGN_RADIUS, noise=0.0, kernel=JJN_KERNEL, serpentine=False, penalty=0.0):
     """Model-based JJN. `noise` is the threshold-noise amplitude in grey levels (as in jjn-tm64).
 
     Undecided neighbours are taken as white, so the increments add up exactly to
-    the predicted darkness. This favours dots next to existing ones, which forms
-    lines in dark tones. Sharing each interaction between the two dots instead
-    (half each, undecided neighbours weighted by the local darkness) was tried
-    and printed 15 L* too dark: heat development is a threshold effect, so the
+    the predicted darkness. This favours dots next to existing ones (they add
+    less darkness, so they pass the threshold more easily), which forms lines in
+    dark tones. Sharing each interaction between the two dots instead (half
+    each, undecided neighbours weighted by the local darkness) was tried and
+    printed 15 L* too dark: heat development is a threshold effect, so the
     interactions are not pairwise.
+
+    Two counter-measures against the lines:
+    - `serpentine`: odd rows are processed right to left (the causal
+      neighbourhood and the kernel are mirrored; the heat model is symmetric).
+    - `penalty`: the threshold is raised by `penalty` times the darkness a dot
+      saves by being next to existing dots. At 0.5 the threshold is the same
+      as for an isolated dot, so the decision no longer prefers neighbours; the
+      error is still measured against the predicted print, so tone is kept.
     """
     table = increment_table(radius)
+    alone = table[0]
     src = target_coverage(reference).copy()
     h, w = src.shape
     jitter = blue_noise_threshold((h, w), noise) / 255 if noise else np.zeros((h, w))
     dots = np.zeros((h + 1, w + 4), dtype=bool)  # one blank row above, two blank columns each side
     for y in range(h):
         row = src[y]
-        for x in range(w):
+        reverse = serpentine and y % 2 == 1
+        s = -1 if reverse else 1
+        for x in (range(w - 1, -1, -1) if reverse else range(w)):
             config = 0
             for bit, (dx, dy) in enumerate(CAUSAL):
-                if dots[y + 1 + dy, x + 2 + dx]:
+                if dots[y + 1 + dy, x + 2 + s * dx]:
                     config |= 1 << bit
             inc = table[config]
             v = row[x]
-            fire = v > inc / 2 - jitter[y, x]
+            fire = v > inc / 2 + penalty * (alone - inc) - jitter[y, x]
             dots[y + 1, x + 2] = fire
             err = v - (inc if fire else 0.0)
             for dx, dy, weight in kernel:
-                nx, ny = x + dx, y + dy
+                nx, ny = x + s * dx, y + dy
                 if 0 <= nx < w and ny < h:
                     src[ny, nx] += err * weight
     return _to_image(dots[1:, 2:-2])
@@ -148,6 +160,10 @@ def adaptive_noise(gray, noise=64, floor=0.25, scale=8.0):
 IMPROVED = {
     "jjn-model": (model_jjn, "reference"),
     "jjn-model-tm64": (lambda r: model_jjn(r, noise=64), "reference"),
+    "jjn-model-serp": (lambda r: model_jjn(r, serpentine=True), "reference"),
+    "jjn-model-serp-tm64": (lambda r: model_jjn(r, noise=64, serpentine=True), "reference"),
+    "jjn-model-pen": (lambda r: model_jjn(r, serpentine=True, penalty=0.5), "reference"),
+    "jjn-model-pen-tm64": (lambda r: model_jjn(r, noise=64, serpentine=True, penalty=0.5), "reference"),
     "jjn-tm64-pairs": (paired_holes, "gray"),
     "jjn-tm64-loss": (partial_loss, "gray"),
     "jjn-tm64-adaptive": (adaptive_noise, "gray"),
@@ -156,6 +172,10 @@ IMPROVED = {
 IMPROVED_LABELS = {
     "jjn-model": "JJN, model-based",
     "jjn-model-tm64": "JJN, model-based + noise 64",
+    "jjn-model-serp": "JJN, model-based, serpentine",
+    "jjn-model-serp-tm64": "JJN, model-based, serpentine + noise 64",
+    "jjn-model-pen": "JJN, model-based, serpentine + chain penalty",
+    "jjn-model-pen-tm64": "JJN, model-based, serpentine + chain penalty + noise 64",
     "jjn-tm64-pairs": "JJN + noise 64, paired shadow holes",
     "jjn-tm64-loss": "JJN + noise 64, 7/8 error",
     "jjn-tm64-adaptive": "JJN + adaptive noise",
