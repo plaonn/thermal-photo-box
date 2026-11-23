@@ -30,14 +30,14 @@ import urllib.request
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from thermal_photo_box.cli import WIDTH, preprocess
 from thermal_photo_box.evaluate import evaluate
-from thermal_photo_box.simulate import DotModel
+from thermal_photo_box.simulate import DEFAULT_RADIUS, DotModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compare_dither import METHODS  # noqa: E402
+from compare_dither import METHODS, detail_sheet  # noqa: E402
 from evaluate_dither import artifact_sheet  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +48,8 @@ COMMONS = "https://upload.wikimedia.org/wikipedia/commons/"
 SAMPLES = {
     "astronaut": (ROOT / "docs/sample/astronaut.png", None,
                   "portrait, detailed background", "NASA, public domain (via scikit-image)"),
+    "astronaut-face": (ROOT / "docs/sample/astronaut.png", None,
+                       "face crop, upscaled 3.2x (smooth)", "NASA, public domain (via scikit-image)"),
     "sally-ride": (COMMONS + "0/0c/Sally_Ride_%281984%29.jpg",
                    "ea25b741c25978a84efbd5c0c333c61e59486768178799c7f32b05d07e851cef",
                    "portrait, smooth backdrop", "NASA, public domain (Wikimedia Commons)"),
@@ -59,7 +61,7 @@ SAMPLES = {
                "sky gradient, smoke", "SpaceX, public domain (via scikit-image)"),
     "coffee": (SKIMAGE + "coffee.png",
                "cc02f8ca188b167c775a7101b5d767d1e71792cf762c33d6fa15a4599b5a8de7",
-               "bright scene, soft shading", "Rachel Michetti, CC0 (via scikit-image)"),
+               "wood grain, white cup, dark saucer", "Rachel Michetti, CC0 (via scikit-image)"),
     "chelsea": (SKIMAGE + "chelsea.png",
                 "596aa1e7cb875eb79f437e310381d26b338a81c2da23439704a73c4651e8c4bb",
                 "fur texture", "Stefan van der Walt, CC0 (via scikit-image)"),
@@ -69,6 +71,13 @@ SAMPLES = {
     "patches": (ROOT / "docs/sample/patches.png", None,
                 "ten uniform grey patches", "synthetic (experiments/make_test_chart.py)"),
 }
+# Crops of a source image, in source pixels (left, top, right, bottom).
+CROPS = {"astronaut-face": (140, 10, 320, 190)}
+# Gallery crop per sample, in 576-dot coordinates (left, top); all crops are DETAIL_SIZE square.
+DETAIL = {"astronaut": (190, 50), "astronaut-face": (170, 230), "sally-ride": (200, 180),
+          "earthrise": (262, 236), "rocket": (190, 220), "coffee": (330, 40), "chelsea": (150, 90),
+          "camera": (400, 180), "patches": (165, 96)}
+DETAIL_SIZE = 128
 EXTERNAL = ("ostromoukhov", "zhoufang")
 METRICS = ("bias", "tone", "texture", "directional", "periodic")
 # Lower is better for every metric; bias is ranked by its absolute value.
@@ -77,6 +86,13 @@ FORMAT = {"bias": "{:+.1f}", "tone": "{:.1f}", "texture": "{:.1f}", "directional
 
 def fetch(name, cache):
     source, digest, _, _ = SAMPLES[name]
+    if name in CROPS:
+        path = cache / f"{name}.png"
+        if not path.is_file():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with Image.open(source) as img:
+                img.convert("RGB").crop(CROPS[name]).save(path)
+        return path
     if isinstance(source, Path):
         return source
     path = cache / f"{name}{Path(source).suffix}"
@@ -108,6 +124,31 @@ def dither_all(gray, external):
     return bitmaps
 
 
+def overview(references, columns=3, thumb=288):
+    """Thumbnails of every sample with its gallery crop outlined."""
+    font = ImageFont.load_default(size=20)
+    label_h, pad = 28, 10
+    cells = []
+    for name, ref in references:
+        img = ref.convert("RGB")
+        left, top = DETAIL[name]
+        ImageDraw.Draw(img).rectangle((left, top, left + DETAIL_SIZE, top + DETAIL_SIZE), outline=(230, 30, 30), width=4)
+        img.thumbnail((thumb, 10 * thumb))
+        cells.append((name, img))
+    rows = (len(cells) + columns - 1) // columns
+    row_h = [max(img.height for _, img in cells[r * columns:(r + 1) * columns]) for r in range(rows)]
+    sheet = Image.new("RGB", (columns * (thumb + pad) + pad, sum(row_h) + rows * (label_h + pad) + pad), "white")
+    draw = ImageDraw.Draw(sheet)
+    y = pad
+    for r in range(rows):
+        for c, (name, img) in enumerate(cells[r * columns:(r + 1) * columns]):
+            x = pad + c * (thumb + pad)
+            draw.text((x, y), name, fill=0, font=font)
+            sheet.paste(img, (x, y + label_h))
+        y += row_h[r] + label_h + pad
+    return sheet
+
+
 def score(metric, value):
     return abs(value) if metric == "bias" else value
 
@@ -122,15 +163,27 @@ def main():
     parser.add_argument("--cache", type=Path, default=ROOT / "output/samples")
     parser.add_argument("--csv", type=Path, help="Write every result to this CSV file")
     parser.add_argument("--artifacts", type=Path, help="Write artifact-map sheets (first radius) to this directory")
+    parser.add_argument("--gallery", type=Path,
+                        help="Write simulated-print crops of every method per sample, plus overview.jpg, to this directory")
+    parser.add_argument("--gallery-radius", type=float, default=DEFAULT_RADIUS["heat"],
+                        help="Heat-model radius for the gallery (default: model default)")
     args = parser.parse_args()
 
     rows = []
+    references = []
     for sample in args.samples:
         path = fetch(sample, args.cache)
         print(f"Evaluating {sample}...", flush=True)
         gray = preprocess(path, WIDTH, 0.70, 0.90, 0.35)
         reference = preprocess(path, WIDTH, 1.0, 1.0, 0.0)
         bitmaps = dither_all(gray, args.external)
+        references.append((sample, reference))
+        if args.gallery:
+            args.gallery.mkdir(parents=True, exist_ok=True)
+            box = (*DETAIL[sample], DETAIL_SIZE)
+            sheet = detail_sheet((f"{sample} (original)", reference), list(bitmaps.items()), box, 3,
+                                 columns=4, model=DotModel(radius=args.gallery_radius))
+            sheet.save(args.gallery / f"{sample}.jpg", quality=80, optimize=True)
         for n, radius in enumerate(args.radii):
             model = DotModel(radius=radius)
             maps = []
@@ -142,6 +195,9 @@ def main():
             if n == 0 and args.artifacts:
                 args.artifacts.mkdir(parents=True, exist_ok=True)
                 artifact_sheet(maps).save(args.artifacts / f"{sample}.png", optimize=True)
+
+    if args.gallery:
+        overview(references).save(args.gallery / "overview.jpg", quality=80, optimize=True)
 
     if args.csv:
         args.csv.parent.mkdir(parents=True, exist_ok=True)
@@ -170,7 +226,7 @@ def main():
             print(f"{m}:")
             for sample in args.samples:
                 ranked = sorted((r for r in at if r["sample"] == sample), key=lambda r: score(m, r[m]))
-                print(f"  {sample:<11}" + " ".join(r["method"] for r in ranked))
+                print(f"  {sample:<15}" + " ".join(r["method"] for r in ranked))
 
 
 if __name__ == "__main__":

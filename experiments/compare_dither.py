@@ -105,6 +105,8 @@ LABELS = {
     "atkinson": "Atkinson",
     "bayer": "Bayer 8x8",
     "blue": "FFT threshold mask",
+    "ostromoukhov": "Ostromoukhov",
+    "zhoufang": "Zhou-Fang",
 }
 
 
