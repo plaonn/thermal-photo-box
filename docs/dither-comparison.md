@@ -105,7 +105,9 @@ Reading:
 - Every method prints darker than the target once dots interact. The gamma 0.70 brightening in the preprocessing can be read as a manual compensation for this.
 - Atkinson darkens least because it discards a quarter of the error, but its structure error is never the lowest. That is consistent with the log's "paler, lost some dark detail".
 
-Limits: one sample image, uncalibrated parameters and a crude metric. Bias and structure are not independent, because darkening compresses contrast. The agreement suggests the models point the right way; it does not validate them. The next step would be to fit radius, threshold and aspect to a printed test chart.
+Limits: one sample image, uncalibrated parameters and a crude metric. Bias and structure are not independent, because darkening compresses contrast. The agreement suggests the models point the right way; it does not validate them.
+
+No dedicated calibration is planned for now. Real prints also vary with paper, density setting and temperature. Use the simulator for coarse decisions, such as whether a pattern clumps or how much a method darkens. Do not use it to separate methods whose scores are close, such as JJN and Zhou–Fang. When a real print clearly disagrees with the simulation, adjust `--radius`, `--threshold` and `--aspect` to match it, and record the print conditions and new values here.
 
 ## Reproduce
 
