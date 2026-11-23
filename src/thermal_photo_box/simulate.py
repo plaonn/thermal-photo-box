@@ -13,7 +13,7 @@ Two dot models are available:
 
 In both models `radius` is the radius of an isolated dot in dot pitches, and
 `aspect` stretches it in the paper-feed (vertical) direction. Paper and ink are
-grey levels rather than pure white/black.
+grey levels rather than pure white/black, mixed in linear reflectance.
 
 The default parameters are NOT calibrated against a real printer. They are
 plausible starting values for a 203 dpi direct-thermal printer.
@@ -21,7 +21,7 @@ plausible starting values for a 203 dpi direct-thermal printer.
 from dataclasses import dataclass
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image
 
 MODELS = ("heat", "overlap")
 
@@ -115,18 +115,52 @@ def _coverage_heat(bitmap, scale, model):
     return np.clip((curve(heat) - lo) / (hi - lo), 0.0, 1.0)
 
 
-def simulate(bitmap: Image.Image, scale: int = 8, model: DotModel = DotModel()) -> Image.Image:
-    """Render a 1-bit image (black = printed dot) as a greyscale image `scale` times larger."""
+def srgb_to_linear(v):
+    """sRGB-encoded value in 0..1 -> linear reflectance."""
+    v = np.asarray(v, dtype=np.float64)
+    return np.where(v <= 0.04045, v / 12.92, ((v + 0.055) / 1.055) ** 2.4)
+
+
+def linear_to_srgb(y):
+    """Linear reflectance in 0..1 -> sRGB-encoded value."""
+    y = np.clip(np.asarray(y, dtype=np.float64), 0.0, 1.0)
+    return np.where(y <= 0.0031308, 12.92 * y, 1.055 * y ** (1 / 2.4) - 0.055)
+
+
+def gaussian_blur(a: np.ndarray, sigma: float) -> np.ndarray:
+    """Separable Gaussian blur of a float array, edges padded by reflection."""
+    if sigma <= 0:
+        return a
+    r = max(1, int(np.ceil(3 * sigma)))
+    k = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma) ** 2)
+    k /= k.sum()
+    p = np.pad(a, r, mode="reflect" if min(a.shape) > r else "edge")
+    p = np.apply_along_axis(lambda v: np.convolve(v, k, mode="valid"), 0, p)
+    return np.apply_along_axis(lambda v: np.convolve(v, k, mode="valid"), 1, p)
+
+
+def simulate_reflectance(bitmap: Image.Image, scale: int = 8, model: DotModel = DotModel()) -> np.ndarray:
+    """Linear reflectance (0..1) of the simulated print, `scale` times larger than the bitmap.
+
+    Paper and ink are mixed in linear reflectance (Murray-Davies), not in
+    gamma-encoded grey values.
+    """
     if scale < 1:
         raise ValueError("scale must be >= 1")
     if model.kind == "heat":
         coverage = _coverage_heat(bitmap, scale, model)
     elif model.kind == "overlap":
         coverage = _coverage_overlap(bitmap, scale, model)
+        if model.blur > 0:
+            coverage = gaussian_blur(coverage, model.blur * scale)
     else:
         raise ValueError(f"unknown dot model: {model.kind}")
-    grey = model.paper - coverage * (model.paper - model.ink)
-    image = Image.fromarray(np.clip(np.rint(grey), 0, 255).astype(np.uint8))
-    if model.kind == "overlap" and model.blur > 0:
-        image = image.filter(ImageFilter.GaussianBlur(model.blur * scale))
-    return image
+    paper = float(srgb_to_linear(model.paper / 255))
+    ink = float(srgb_to_linear(model.ink / 255))
+    return paper - coverage * (paper - ink)
+
+
+def simulate(bitmap: Image.Image, scale: int = 8, model: DotModel = DotModel()) -> Image.Image:
+    """Render a 1-bit image (black = printed dot) as an sRGB greyscale image `scale` times larger."""
+    y = simulate_reflectance(bitmap, scale, model)
+    return Image.fromarray(np.rint(linear_to_srgb(y) * 255).astype(np.uint8))

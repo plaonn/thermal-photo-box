@@ -66,46 +66,83 @@ thermal-photo-box simulate docs/images/astronaut/jjn.png --scale 8            # 
 thermal-photo-box simulate docs/images/astronaut/jjn.png --model overlap
 ```
 
-### Does the model reproduce the XP-80T ranking?
+### Evaluating the simulated prints
 
-`experiments/simulate_sweep.py` simulates each bitmap for a range of isolated-dot radii and compares it with the grayscale target. Both are viewed through a 1.5-dot Gaussian low-pass, as a crude stand-in for viewing distance. It reports two numbers:
+`experiments/evaluate_dither.py` compares each simulated print with the **unadjusted original**: the source resized and converted to grey, with no gamma, contrast or blur adjustment. The question is how close the whole pipeline gets to the photo, including the preprocessing that is meant to compensate for print darkening. The steps (code in `src/thermal_photo_box/evaluate.py`):
 
-- **bias:** mean simulated minus target, in grey levels. Negative means darker.
-- **structure:** spread of the remaining difference. Lower is closer to the target.
+1. Simulate the print and average each dot cell in **linear reflectance**. Paper and ink are mixed as light, not as encoded grey values.
+2. Map the original's lightness into the printable range between ink and paper.
+3. Filter both images with the [S-CIELAB](https://doi.org/10.1889/1.1985127) luminance contrast-sensitivity filter for a 30 cm viewing distance at 203 dpi (about 42 dots per degree), then convert to CIE L\*. The difference ΔL\* contains only what the eye can resolve at that distance.
+4. Split ΔL\* into a smooth **tone** part (Gaussian, σ = 0.25°) and the remaining **texture** part.
+5. In **flat regions of the original** only, measure two kinds of structure that the photo does not contain and that dithering therefore introduced:
+   - **directional:** energy-weighted orientation coherence of the texture (structure tensor, 3-dot window), from 0 to 1. Worms and diagonal lines score high. Isotropic grain scores about 0.13–0.17.
+   - **periodic:** share of the texture's power in the strongest 0.1% of spatial frequencies. Grids score high. Isotropic grain scores about 0.01.
 
-The NASA sample gave the results below. Ostromoukhov and Zhou–Fang were rendered with a temporary clone of the external implementation; the PNGs are not stored here. Each cell is bias / structure. The lowest structure error per row is in bold, ignoring Atkinson in the lightest row (it is low there only because highlights stay blank).
+| Column | Meaning |
+| --- | --- |
+| bias | mean ΔL\*; negative = darker than the original |
+| tone | local tone error (std of the smooth part, ΔL\*) |
+| texture | visible graininess (RMS of the fine part, ΔL\*) |
+| directional | aligned artifacts in flat areas (0–1) |
+| periodic | regular artifacts in flat areas (0–1) |
 
-**Heat model**
+In addition to the photo, a synthetic [chart of ten uniform grey patches](sample/patches.png) is used. Artifacts show up most clearly on uniform areas.
 
-| radius | Floyd–Steinberg | Serpentine FS | JJN | Atkinson | Bayer 8×8 | FFT mask | Ostromoukhov | Zhou–Fang |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0.40 | +26.5 / **8.9** | +26.6 / 9.1 | +25.1 / 9.1 | +25.9 / 5.0 | +27.1 / 9.9 | +24.6 / 13.3 | +26.1 / 9.6 | +24.6 / 10.3 |
-| 0.45 | +8.4 / 3.9 | +8.3 / 3.9 | +7.3 / 5.2 | +9.2 / 12.5 | +8.6 / 5.6 | +6.8 / 12.2 | +8.0 / **3.7** | +6.1 / 4.2 |
-| 0.50 | −6.3 / 7.0 | −6.5 / 7.0 | −5.6 / 7.0 | −1.3 / 15.1 | −7.7 / 9.0 | −5.7 / 13.7 | −6.2 / 5.9 | −8.1 / **5.8** |
-| 0.55 | −21.9 / 13.9 | −22.3 / 14.1 | −18.7 / 11.2 | −11.7 / 18.6 | −25.4 / 18.0 | −18.3 / 16.6 | −21.2 / 11.7 | −22.8 / **11.1** |
-| 0.60 | −36.1 / 19.9 | −36.7 / 20.3 | −31.3 / **15.9** | −21.8 / 22.7 | −40.6 / 24.7 | −30.3 / 20.3 | −35.4 / 17.3 | −37.1 / 16.5 |
-| 0.65 | −48.2 / 24.1 | −48.7 / 24.4 | −42.2 / **20.2** | −31.2 / 26.5 | −51.9 / 27.5 | −40.9 / 23.8 | −47.6 / 22.0 | −49.8 / 21.5 |
-| 0.70 | −60.1 / 28.8 | −60.3 / 28.8 | −52.8 / **24.6** | −40.7 / 30.5 | −62.0 / 29.9 | −50.8 / 27.5 | −59.6 / 27.1 | −62.3 / 26.9 |
+#### Results (heat model; each cell is radius 0.55 / 0.65)
 
-**Overlap model**
+NASA sample:
 
-| radius | Floyd–Steinberg | Serpentine FS | JJN | Atkinson | Bayer 8×8 | FFT mask | Ostromoukhov | Zhou–Fang |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0.50 | +11.9 / **8.2** | +11.8 / 8.4 | +12.1 / 8.8 | +14.7 / 5.3 | +11.4 / 9.1 | +12.0 / 13.5 | +11.9 / 9.1 | +10.2 / 10.0 |
-| 0.60 | −14.6 / 7.4 | −14.8 / 7.7 | −12.2 / 7.5 | −7.3 / 12.6 | −16.6 / 9.9 | −11.9 / 14.0 | −13.9 / **7.0** | −16.0 / 7.5 |
-| 0.71 | −37.4 / 15.7 | −37.8 / 16.0 | −32.0 / **13.5** | −24.0 / 18.0 | −40.9 / 19.2 | −30.7 / 18.4 | −36.0 / 14.4 | −38.4 / 14.5 |
-| 0.80 | −54.7 / 22.5 | −55.1 / 22.8 | −47.1 / **19.2** | −37.1 / 23.3 | −58.7 / 25.9 | −45.1 / 23.0 | −53.0 / 21.0 | −55.8 / 21.3 |
-| 0.90 | −69.9 / 29.4 | −70.2 / 29.5 | −60.7 / **24.9** | −49.7 / 28.6 | −73.0 / 31.6 | −58.2 / 27.9 | −67.9 / 27.8 | −71.6 / 28.8 |
-| 1.00 | −85.0 / 37.9 | −84.8 / 37.7 | −74.8 / **32.0** | −62.9 / 35.1 | −85.2 / 38.2 | −70.8 / 33.4 | −83.0 / 36.1 | −86.9 / 37.6 |
+| Method | bias | tone | texture | directional | periodic |
+| --- | --- | --- | --- | --- | --- |
+| Floyd–Steinberg | +9.9 / −3.0 | 3.1 / 4.8 | 4.7 / 6.1 | 0.27 / 0.31 | 0.078 / 0.092 |
+| Serpentine FS | +9.8 / −3.3 | 3.1 / 4.8 | 4.8 / 6.5 | 0.15 / 0.33 | 0.080 / 0.087 |
+| JJN | +11.4 / +0.7 | 4.6 / **2.2** | 6.2 / 6.3 | 0.22 / 0.31 | 0.103 / **0.027** |
+| Atkinson | +11.2 / +2.5 | 5.1 / 5.4 | 5.0 / 6.0 | 0.29 / 0.30 | 0.147 / 0.057 |
+| Bayer 8×8 | +8.5 / −6.0 | 2.4 / 7.0 | 5.4 / 9.0 | 0.05 / 0.21 | 0.213 / 0.179 |
+| FFT mask | +11.3 / +0.9 | 4.5 / 1.7 | 9.8 / 10.7 | 0.19 / 0.22 | 0.048 / 0.045 |
+| Ostromoukhov | +10.6 / −2.0 | 3.8 / 3.4 | 5.4 / 6.1 | 0.24 / 0.38 | 0.080 / 0.046 |
+| Zhou–Fang | +10.2 / −2.5 | 3.9 / 3.1 | 5.6 / 5.9 | 0.19 / 0.21 | 0.075 / 0.039 |
 
-Reading:
+Grey-patch chart:
 
-- Both models agree on the overall pattern. With little dot gain, Floyd–Steinberg, Ostromoukhov and Zhou–Fang are as good as or better than JJN, which matches how promising they looked on screen. Once gain is strong, JJN has the lowest structure error and darkens less than all three. This matches the XP-80T paper result.
-- **Heat model:** JJN's lead over Floyd–Steinberg stays clear. Its lead over Zhou–Fang and Ostromoukhov in structure error is small (for example 15.9 vs 16.5 at radius 0.60), and Zhou–Fang is slightly ahead at 0.55. JJN's clearer advantage is tone: it comes out 5–10 grey levels lighter. In this model the paper result is explained mostly by darkening rather than by texture.
-- Every method prints darker than the target once dots interact. The gamma 0.70 brightening in the preprocessing can be read as a manual compensation for this.
-- Atkinson darkens least because it discards a quarter of the error, but its structure error is never the lowest. That is consistent with the log's "paler, lost some dark detail".
+| Method | bias | tone | texture | directional | periodic |
+| --- | --- | --- | --- | --- | --- |
+| Floyd–Steinberg | +10.7 / −5.7 | 4.5 / 8.9 | 3.5 / 5.7 | 0.27 / 0.35 | 0.048 / 0.175 |
+| Serpentine FS | +10.7 / −5.7 | 4.5 / 8.7 | 3.7 / 5.9 | 0.25 / 0.35 | 0.051 / 0.126 |
+| JJN | +12.7 / −0.3 | 6.1 / **3.5** | 4.9 / 6.4 | 0.34 / 0.23 | 0.071 / **0.035** |
+| Atkinson | +12.4 / +0.7 | 5.3 / 8.2 | 4.6 / 5.2 | 0.28 / 0.25 | 0.040 / 0.103 |
+| Bayer 8×8 | +9.1 / −9.7 | 4.0 / 13.4 | 4.2 / 5.9 | 0.03 / 0.12 | 0.569 / 0.545 |
+| FFT mask | +12.8 / +0.9 | 6.4 / 2.4 | 9.6 / 11.5 | 0.20 / 0.21 | 0.056 / 0.060 |
+| Ostromoukhov | +11.9 / −3.1 | 5.7 / 5.3 | 4.4 / 6.2 | 0.35 / 0.41 | 0.066 / 0.061 |
+| Zhou–Fang | +11.3 / −3.7 | 6.0 / 4.4 | 4.6 / 6.1 | 0.19 / 0.20 | 0.056 / 0.044 |
 
-Limits: one sample image, uncalibrated parameters and a crude metric. Bias and structure are not independent, because darkening compresses contrast. The agreement suggests the models point the right way; it does not validate them.
+Ostromoukhov and Zhou–Fang were rendered with a temporary clone of the external implementation; their bitmaps are not stored here. The FFT mask has low tone error only because its coarse noise averages out; its texture is by far the worst.
+
+#### Artifact maps
+
+These maps show where the texture is more strongly aligned than random grain ever gets (coherence above the 95th percentile for noise, weighted by texture strength), in flat areas only. Darker means a stronger aligned artifact. Grids such as Bayer are not aligned in one direction, so they appear in the `periodic` column instead of on these maps. Heat model, radius 0.55, same scale for all panels:
+
+![Artifact maps on the grey-patch chart](images/patches/artifacts.png)
+
+Maps for the NASA sample: [artifacts.png](images/astronaut/artifacts.png).
+
+On the patch chart, the maps pick out patterns that are visible in the simulated prints:
+
+- Floyd–Steinberg and serpentine FS: checkerboard regions broken by horizontal stripes at mid grey.
+- Atkinson: diagonal lines in the light patches.
+- JJN: meandering "worms" spread across most tones.
+
+Random grain (FFT mask) mostly stays blank.
+
+#### Reading
+
+- **Tone decides the radius question.** At radius 0.55 every method prints about 10 L\* lighter than the original. At 0.65 the bias is close to zero. The gamma 0.70 and contrast 0.90 preprocessing was tuned by eye on real prints. If that tuning aimed at faithful tone, the XP-80T at density 4 behaves more like radius 0.65 than the default 0.55. This is an inference from a past preference, not a measurement.
+- **At radius 0.65, JJN fits the paper result.** It has the lowest tone error among the error-diffusion methods and the lowest periodic score on both samples. Floyd–Steinberg and serpentine FS gain periodic and directional artifacts on the patch chart as dots spread (periodic 0.05 → 0.18). This matches the log's "conspicuous texture/diagonal patterns on paper".
+- **JJN is not artifact-free.** Its worms raise the directional score at 0.55. Zhou–Fang has the lowest directional score of all error-diffusion methods at every radius, consistent with its structure-aware design. Against JJN it loses mainly on tone (darker by 3–4 L\* at 0.65). That gap is within the uncertainty of the uncalibrated model.
+- **Ostromoukhov** has the highest directional score at 0.65 on both samples. The log only says "softer/less defined"; the simulation suggests aligned structure as one possible cause.
+- **Graininess** is lowest for Floyd–Steinberg at small radii and roughly equal for all error-diffusion methods at 0.65. It does not explain the paper ranking.
+
+Limits: two images, uncalibrated parameters, and an approximate vision model. S-CIELAB is a standard model, but the directional and periodic measures are this project's own heuristics. They are checked against synthetic stripes and noise (`tests/test_evaluate.py`) and by eye against the maps, not against viewer ratings.
 
 No dedicated calibration is planned for now. Real prints also vary with paper, density setting and temperature. Use the simulator for coarse decisions, such as whether a pattern clumps or how much a method darkens. Do not use it to separate methods whose scores are close, such as JJN and Zhou–Fang. When a real print clearly disagrees with the simulation, adjust `--radius`, `--threshold` and `--aspect` to match it, and record the print conditions and new values here.
 
@@ -115,9 +152,12 @@ No dedicated calibration is planned for now. Real prints also vary with paper, d
 pip install -e .
 python experiments/compare_dither.py docs/sample/astronaut.png \
   --output docs/images/astronaut --detail 180 60 160 --simulate
-cd docs/images/astronaut && python ../../../experiments/simulate_sweep.py 00-grayscale.png \
-  floyd.png serpentine.png jjn.png atkinson.png bayer.png blue.png               # heat model
-#   add --model overlap --radii 0.5 0.6 0.71 0.8 0.9 1.0 for the overlap table
+python experiments/make_test_chart.py      # docs/sample/patches.png
+python experiments/compare_dither.py docs/sample/patches.png --output docs/images/patches
+D=docs/images/patches
+python experiments/evaluate_dither.py docs/sample/patches.png \
+  $D/floyd.png $D/serpentine.png $D/jjn.png $D/atkinson.png $D/bayer.png $D/blue.png \
+  --radii 0.55 0.65 --artifacts $D/artifacts.png      # add --model overlap for the other model
 ```
 
 To print the same set on a connected XP-80T, add `--print`. Add `--density N` only if you accept that the experimental density command may change persistent printer settings (see the README caution).
