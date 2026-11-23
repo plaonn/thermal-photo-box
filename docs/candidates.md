@@ -161,7 +161,7 @@ So the tone gain of model-based diffusion came from the chains themselves. A ver
 
 **JJN + noise 64 remains the safest choice.** Model-based diffusion has the only large tone gain, but it depends on the stripes: removing them removes the gain.
 
-### Sheets
+### Improvement sheets
 
 Same layout as the candidate sheets, for three samples.
 
