@@ -8,7 +8,7 @@ Terminology: the XP-80T is a direct thermal printer; there is no ink or ribbon. 
 
 ## Conclusions
 
-1. **Recommended method: JJN + noise 64** (JJN with its threshold varied by ±32 grey levels by a blue-noise mask). Its tone error is close to the best at every dot radius from 0.55 up, and it has the fewest directional patterns of the JJN family. It has not been printed yet. ([candidates](candidates.md))
+1. **Recommended method: JJN + noise 64** (JJN with its threshold varied by ±32 grey levels by a blue-noise mask; `thermal-photo-box render --method jjn-noise`). Its tone error is close to the best at every dot radius from 0.55 up, and it has the fewest directional patterns of the JJN family. It has not been printed yet. ([candidates](candidates.md))
 2. **The dot size matters far more than the method.** Each 0.1 of radius shifts the overall lightness by 10–13 L\*; at one radius, the candidates differ by at most 2.5 L\*. Tone is therefore set by the printer density and the preprocessing gamma, not by the choice of method. ([candidates](candidates.md#what-holds-at-every-radius))
 3. **Dot gain turns arrangement into tone.** Highlights change through the size of isolated dots; mid and dark tones change mostly through neighbouring dots merging. The same 50% coverage prints very differently depending on how the dots are arranged (heat model, L\*):
 
@@ -44,10 +44,9 @@ The XP-80T at density 4 probably behaves like a radius of about **0.6–0.7**. T
 
 ## Next steps (needs the printer)
 
-1. Add JJN + noise 64 to `thermal-photo-box render` (it currently offers only `jjn` and `floyd`; the noise variant exists in `experiments/extra_dither.py`).
-2. Print the patch chart and one photo with JJN and JJN + noise 64 at density 4, with the existing preprocessing.
-3. Compare the prints with simulations at radius 0.45–0.75, using the 50% arrangement test above (checkerboard against line patterns) as a direct radius probe. Choose the radius that matches.
-4. Adjust gamma, then density if needed, to neutral tone. Set the simulation's default radius to the measured value.
+1. Print the patch chart and one photo with JJN and JJN + noise 64 at density 4, with the existing preprocessing. Render with `thermal-photo-box render IMAGE --method jjn` and `--method jjn-noise`.
+2. Compare the prints with simulations at radius 0.45–0.75, using the 50% arrangement test above (checkerboard against line patterns) as a direct radius probe. Choose the radius that matches.
+3. Adjust gamma, then density if needed, to neutral tone. Set the simulation's default radius to the measured value.
 
 The density command `1F 1B 1F 13 14 nn` may change persistent printer settings; send it only with an explicit `--density`.
 

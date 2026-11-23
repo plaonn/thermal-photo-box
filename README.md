@@ -21,7 +21,7 @@ Generate **preview files only** from your own JPEG/PNG (no printer access):
 thermal-photo-box render ~/Pictures/test.jpg --method jjn --output output
 ```
 
-This creates `output/grayscale.png` and `output/jjn.png`. The rendering defaults match the experiment: width 576 px, gamma 0.70, contrast 0.90, Gaussian blur 0.35 px.
+This creates `output/grayscale.png` and `output/jjn.png`. The rendering defaults match the experiment: width 576 px, gamma 0.70, contrast 0.90, Gaussian blur 0.35 px. `--method jjn-noise` adds blue-noise threshold noise to JJN, which removed most regular patterns in simulation ([research summary](docs/findings.md)); it has not been printed yet.
 
 Print an existing **1-bit, 576-pixel-wide** image without re-dithering:
 

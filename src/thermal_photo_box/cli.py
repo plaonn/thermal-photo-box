@@ -36,9 +36,15 @@ def preprocess(path: Path, width: int, gamma: float, contrast: float, blur: floa
     return gray
 
 
-def error_diffusion(gray: Image.Image, kernel, serpentine: bool = False) -> Image.Image:
+# Threshold-noise amplitude (grey levels) of the "jjn-noise" method; see docs/candidates.md.
+NOISE_AMPLITUDE = 64
+
+
+def error_diffusion(gray: Image.Image, kernel, serpentine: bool = False, threshold_noise=None) -> Image.Image:
+    """Error diffusion; `threshold_noise` (array of the image shape) is added to the threshold of 128."""
     src = np.asarray(gray, dtype=np.float32).copy()
     h, w = src.shape
+    threshold = 128.0 + (np.zeros((h, w)) if threshold_noise is None else threshold_noise)
     output = np.empty((h, w), dtype=np.uint8)
     for y in range(h):
         reverse = serpentine and y % 2 == 1
@@ -46,7 +52,7 @@ def error_diffusion(gray: Image.Image, kernel, serpentine: bool = False) -> Imag
         direction = -1 if reverse else 1
         for x in indices:
             old = src[y, x]
-            new = 255 if old >= 128 else 0
+            new = 255 if old >= threshold[y, x] else 0
             output[y, x] = new
             err = old - new
             for dx, dy, weight in kernel:
@@ -59,6 +65,9 @@ def error_diffusion(gray: Image.Image, kernel, serpentine: bool = False) -> Imag
 def dither(gray: Image.Image, method: str) -> Image.Image:
     if method == "jjn":
         return error_diffusion(gray, JJN_KERNEL)
+    if method == "jjn-noise":
+        from .bluenoise import blue_noise_threshold
+        return error_diffusion(gray, JJN_KERNEL, threshold_noise=blue_noise_threshold(gray.size[::-1], NOISE_AMPLITUDE))
     if method == "floyd":
         return gray.convert("1", dither=Image.Dither.FLOYDSTEINBERG)
     raise ValueError("Unsupported dither method: " + method)
@@ -83,7 +92,8 @@ def main():
     render = commands.add_parser("render", help="Generate grayscale and 1-bit preview PNGs")
     render.add_argument("image", type=Path)
     render.add_argument("--output", type=Path, default=Path("output"))
-    render.add_argument("--method", choices=["jjn", "floyd"], default="jjn")
+    render.add_argument("--method", choices=["jjn", "jjn-noise", "floyd"], default="jjn",
+                        help="jjn-noise: JJN with blue-noise threshold noise (recommended in simulation, not yet printed)")
     render.add_argument("--width", type=int, default=WIDTH)
     render.add_argument("--gamma", type=float, default=0.70)
     render.add_argument("--contrast", type=float, default=0.90)
