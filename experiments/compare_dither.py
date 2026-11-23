@@ -96,22 +96,42 @@ METHODS = {
 }
 
 
-def detail_sheet(images, box, scale, columns=3):
-    """Nearest-neighbour enlarged crops so individual dots stay visible on screen."""
+LABELS = {
+    "grayscale": "Grayscale input",
+    "floyd": "Floyd-Steinberg",
+    "serpentine": "Serpentine Floyd-Steinberg",
+    "jjn": "Jarvis-Judice-Ninke",
+    "atkinson": "Atkinson",
+    "bayer": "Bayer 8x8",
+    "blue": "FFT threshold mask",
+}
+
+
+def detail_sheet(source, images, box, scale, columns=3):
+    """Source crop on the first row, then dithered crops in a grid.
+
+    Crops are enlarged with nearest-neighbour scaling so individual dots stay visible.
+    """
     left, top, size = box
-    label_h, pad = 16, 8
     cell = size * scale
-    rows = (len(images) + columns - 1) // columns
-    sheet = Image.new("L", (columns * (cell + pad) + pad, rows * (cell + label_h + pad) + pad), 255)
+    font = ImageFont.load_default(size=max(16, cell // 12))
+    label_h = font.size + font.size // 2
+    pad = font.size
+    rows = 1 + (len(images) + columns - 1) // columns
+    width = columns * (cell + pad) + pad
+    sheet = Image.new("L", (width, rows * (cell + label_h + pad) + pad), 255)
     draw = ImageDraw.Draw(sheet)
-    font = ImageFont.load_default()
-    for i, (name, image) in enumerate(images):
+
+    def place(name, image, x, y):
         crop = image.convert("L").crop((left, top, left + size, top + size))
-        crop = crop.resize((cell, cell), Image.Resampling.NEAREST)
+        sheet.paste(crop.resize((cell, cell), Image.Resampling.NEAREST), (x, y + label_h))
+        draw.text((x, y), LABELS.get(name, name), fill=0, font=font)
+
+    place(source[0], source[1], (width - cell) // 2, pad)
+    for i, (name, image) in enumerate(images):
         x = pad + (i % columns) * (cell + pad)
-        y = pad + (i // columns) * (cell + label_h + pad)
-        draw.text((x, y), name, fill=0, font=font)
-        sheet.paste(crop, (x, y + label_h))
+        y = pad + (1 + i // columns) * (cell + label_h + pad)
+        place(name, image, x, y)
     return sheet
 
 
@@ -144,7 +164,7 @@ def main():
 
     if args.detail:
         path = args.output / "detail.png"
-        detail_sheet([("grayscale", gray)] + results, args.detail, args.detail_scale).save(path, optimize=True)
+        detail_sheet(("grayscale", gray), results, args.detail, args.detail_scale).save(path, optimize=True)
         print(f"  Saved: {path}")
 
     if not args.do_print:
