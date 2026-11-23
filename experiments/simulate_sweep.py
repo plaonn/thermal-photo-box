@@ -42,7 +42,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("gray", type=Path, help="Grayscale target (00-grayscale.png)")
     parser.add_argument("bitmaps", type=Path, nargs="+", help="1-bit PNGs to score")
-    parser.add_argument("--radii", type=float, nargs="+", default=[0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0])
+    parser.add_argument("--radii", type=float, nargs="+", default=[0.4, 0.5, 0.55, 0.6, 0.7])
+    parser.add_argument("--model", choices=["heat", "overlap"], default="heat")
+    parser.add_argument("--threshold", type=float, default=DotModel.threshold)
     parser.add_argument("--aspect", type=float, default=DotModel.aspect)
     parser.add_argument("--sigma", type=float, default=1.5, help="Viewing low-pass sigma in dots")
     parser.add_argument("--scale", type=int, default=4)
@@ -59,10 +61,11 @@ def main():
         with Image.open(path) as src:
             bitmaps.append((path.stem, src.convert("1")))
 
-    print(f"bias / structure after a {args.sigma}-dot low-pass (grey levels)")
+    print(f"{args.model} model; bias / structure after a {args.sigma}-dot low-pass (grey levels)")
     print("radius  " + "  ".join(f"{name:>14}" for name, _ in bitmaps))
     for radius in args.radii:
-        model = DotModel(radius=radius, aspect=args.aspect, paper=base.paper, ink=base.ink, blur=base.blur)
+        model = DotModel(radius=radius, aspect=args.aspect, paper=base.paper, ink=base.ink, blur=base.blur,
+                         kind=args.model, threshold=args.threshold)
         cells = []
         for _, bitmap in bitmaps:
             sim = lowpass(cell_average(simulate(bitmap, args.scale, model), args.scale), args.sigma)

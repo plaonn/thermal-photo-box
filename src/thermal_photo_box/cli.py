@@ -98,11 +98,15 @@ def main():
     sim.add_argument("image", type=Path)
     sim.add_argument("--output", type=Path, help="Output PNG (default: <image>-simulated.png)")
     sim.add_argument("--scale", type=int, default=8, help="Output pixels per printer dot")
-    sim.add_argument("--radius", type=float, default=0.75, help="Dot radius in dot pitches")
+    sim.add_argument("--model", choices=["heat", "overlap"], default="heat",
+                     help="heat: summed Gaussian heat spots with a soft threshold; overlap: hard ellipses")
+    sim.add_argument("--radius", type=float, help="Isolated-dot radius in dot pitches (default: 0.55 heat, 0.75 overlap)")
+    sim.add_argument("--threshold", type=float, default=0.4, help="Heat model: development threshold (0..1)")
+    sim.add_argument("--softness", type=float, default=0.08, help="Heat model: threshold softness")
     sim.add_argument("--aspect", type=float, default=1.15, help="Vertical/horizontal dot radius ratio")
     sim.add_argument("--paper", type=int, default=245, help="Paper grey level")
     sim.add_argument("--ink", type=int, default=35, help="Ink grey level")
-    sim.add_argument("--blur", type=float, default=0.10, help="Edge softness in dot pitches")
+    sim.add_argument("--blur", type=float, default=0.10, help="Overlap model: edge softness in dot pitches")
 
     density = commands.add_parser("density", help="Set persistent printer density (experimental)")
     density.add_argument("level", type=int, choices=range(1, 9))
@@ -121,10 +125,14 @@ def main():
         return
 
     if args.command == "simulate":
-        from .simulate import DotModel, simulate
-        if args.scale < 1 or args.radius <= 0 or args.aspect <= 0 or args.blur < 0:
+        from .simulate import DEFAULT_RADIUS, DotModel, simulate
+        radius = DEFAULT_RADIUS[args.model] if args.radius is None else args.radius
+        if args.scale < 1 or radius <= 0 or args.aspect <= 0 or args.blur < 0:
             parser.error("scale, radius and aspect must be positive; blur cannot be negative")
-        model = DotModel(args.radius, args.aspect, args.paper, args.ink, args.blur)
+        if not 0 < args.threshold < 1 or args.softness <= 0:
+            parser.error("threshold must be between 0 and 1; softness must be positive")
+        model = DotModel(radius, args.aspect, args.paper, args.ink, args.blur,
+                         args.model, args.threshold, args.softness)
         with Image.open(args.image) as src:
             result = simulate(src, args.scale, model)
         output = args.output or args.image.with_name(args.image.stem + "-simulated.png")

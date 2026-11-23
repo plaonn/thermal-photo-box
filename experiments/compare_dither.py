@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from thermal_photo_box.cli import JJN_KERNEL, WIDTH, error_diffusion, open_printer, preprocess, set_density
-from thermal_photo_box.simulate import DotModel, simulate
+from thermal_photo_box.simulate import DEFAULT_RADIUS, DotModel, simulate
 
 FS_KERNEL = ((1, 0, 7 / 16), (-1, 1, 3 / 16), (0, 1, 5 / 16), (1, 1, 1 / 16))
 
@@ -155,7 +155,7 @@ def main():
     )
     parser.add_argument("--detail-scale", type=int, default=3)
     parser.add_argument("--simulate", action="store_true",
-                        help="With --detail, also write detail-simulated.png using the default dot model")
+                        help="With --detail, also write detail-simulated.png (heat model) and detail-simulated-overlap.png")
     parser.add_argument("--print", dest="do_print", action="store_true", help="Print results over USB")
     parser.add_argument("--density", type=int, choices=range(1, 9), help="Send the persistent density command first")
     args = parser.parse_args()
@@ -179,9 +179,10 @@ def main():
         print(f"  Saved: {path}")
 
     if args.detail and args.simulate:
-        path = args.output / "detail-simulated.png"
-        detail_sheet(("grayscale", gray), results, args.detail, args.detail_scale, model=DotModel()).save(path, optimize=True)
-        print(f"  Saved: {path}")
+        for suffix, model in (("", DotModel()), ("-overlap", DotModel(radius=DEFAULT_RADIUS["overlap"], kind="overlap"))):
+            path = args.output / f"detail-simulated{suffix}.png"
+            detail_sheet(("grayscale", gray), results, args.detail, args.detail_scale, model=model).save(path, optimize=True)
+            print(f"  Saved: {path}")
 
     if not args.do_print:
         print("Previews saved; no printing performed. Add --print to print.")
