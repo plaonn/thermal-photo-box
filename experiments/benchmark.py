@@ -136,17 +136,20 @@ GROUPS = (
 )
 
 
-def grouped_sheet(original, tiles, font_size=22):
-    """The original on the first row, then one row per method family with a heading.
+def grouped_sheet(original, tiles, font_size=22, groups=GROUPS, labels=None):
+    """The original on the first row, then one row per group with a heading.
 
-    `original` is (label, image); `tiles` maps method name to an image of the same size.
-    Families whose methods are all missing (e.g. without --external) are skipped.
+    `original` is (label, image); `tiles` maps a key to an image of the same size;
+    `groups` is ((heading, keys), ...) and `labels` maps keys to tile labels
+    (default: method labels). Groups whose keys are all missing (e.g. without
+    --external) are skipped.
     """
+    labels = LABELS if labels is None else labels
     w, h = original[1].size
     font = ImageFont.load_default(size=font_size)
     heading = ImageFont.load_default(size=round(font_size * 1.3))
     label_h, pad, head_h = round(font_size * 1.5), round(font_size * 0.6), round(font_size * 3.4)
-    rows = [(title, [n for n in names if n in tiles]) for title, names in GROUPS]
+    rows = [(title, [n for n in names if n in tiles]) for title, names in groups]
     rows = [(title, names) for title, names in rows if names]
     missing = sorted(set(tiles) - {n for _, names in rows for n in names})
     if missing:
@@ -165,31 +168,40 @@ def grouped_sheet(original, tiles, font_size=22):
         y += head_h
         for i, name in enumerate(names):
             x = pad + i * (w + pad)
-            draw.text((x, y), LABELS.get(name, name), fill=0, font=font)
+            draw.text((x, y), labels.get(name, name), fill=0, font=font)
             sheet.paste(tiles[name].convert("RGB"), (x, y + label_h))
         y += label_h + h + pad
     return sheet
 
 
-def full_sheet(sample, reference, bitmaps, model, panel=384):
-    """Whole image: the original (gallery crop outlined) and every method as a simulated print.
-
-    Each print is simulated at 4 samples per dot and averaged down to `panel` pixels
-    wide in linear reflectance, roughly how the print looks from a normal distance.
-    """
-    from thermal_photo_box.simulate import linear_to_srgb, simulate_reflectance
-
-    h = round(reference.height * panel / reference.width)
+def outlined_original(sample, reference, panel=384):
+    """The original, `panel` pixels wide, with the gallery crop outlined in red."""
     original = reference.convert("RGB")
     left, top = DETAIL[sample]
     ImageDraw.Draw(original).rectangle((left, top, left + DETAIL_SIZE, top + DETAIL_SIZE),
                                        outline=(230, 30, 30), width=4)
-    tiles = {}
-    for name, bitmap in bitmaps.items():
-        y = simulate_reflectance(bitmap, 4, model).astype(np.float32)
-        small = np.asarray(Image.fromarray(y, mode="F").resize((panel, h), Image.Resampling.BOX))
-        tiles[name] = Image.fromarray(np.rint(linear_to_srgb(small) * 255).astype(np.uint8))
-    return grouped_sheet((f"{sample} (original)", original.resize((panel, h), Image.Resampling.LANCZOS)), tiles)
+    h = round(reference.height * panel / reference.width)
+    return original.resize((panel, h), Image.Resampling.LANCZOS)
+
+
+def print_thumbnail(bitmap, model, panel=384):
+    """A simulated print, `panel` pixels wide.
+
+    Simulated at 4 samples per dot and averaged down in linear reflectance,
+    roughly how the print looks from a normal distance.
+    """
+    from thermal_photo_box.simulate import linear_to_srgb, simulate_reflectance
+
+    h = round(bitmap.height * panel / bitmap.width)
+    y = simulate_reflectance(bitmap, 4, model).astype(np.float32)
+    small = np.asarray(Image.fromarray(y, mode="F").resize((panel, h), Image.Resampling.BOX))
+    return Image.fromarray(np.rint(linear_to_srgb(small) * 255).astype(np.uint8))
+
+
+def full_sheet(sample, reference, bitmaps, model, panel=384):
+    """Whole image: the original (gallery crop outlined) and every method as a simulated print."""
+    tiles = {name: print_thumbnail(bitmap, model, panel) for name, bitmap in bitmaps.items()}
+    return grouped_sheet((f"{sample} (original)", outlined_original(sample, reference, panel)), tiles)
 
 
 def detail_grouped_sheet(sample, reference, bitmaps, model, scale=3):

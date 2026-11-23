@@ -308,7 +308,7 @@ Mean over the eight samples, heat model, radius 0.55 / 0.65:
 | DBS | +11.7 / −1.7 | 3.7 / 2.9 | 4.8 / 5.9 | 0.27 / 0.24 | 0.100 / 0.076 |
 | Clustered dot 45° | +14.3 / +10.0 | 5.0 / 3.9 | 17.7 / 17.2 | 0.05 / 0.06 | 0.569 / 0.543 |
 
-Observations:
+Observations (the six JJN and Atkinson candidates are compared at four dot sizes in [Print candidates across dot sizes](candidates.md)):
 
 - **Threshold noise does what it should.** With noise 64, the directional score drops from 0.25 to 0.18 for JJN and from 0.29 to 0.19 for Atkinson (radius 0.65). Tone error barely changes, and texture rises by 0.1–0.4. On the patch chart, Atkinson's diagonal lines in the light patches disappear, and JJN's regular lattice in the light patches is partly broken up. These are the closest to "JJN or Atkinson, with fewer patterns".
 - **Other kernels bring nothing new.** Sierra behaves almost exactly like JJN. Stucki, Burkes and Shiau–Fan behave like Floyd–Steinberg: they print darker at 0.65 and get more periodic. Sierra Lite is the most directional method tested (0.45–0.50).
