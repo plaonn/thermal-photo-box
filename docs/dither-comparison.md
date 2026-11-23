@@ -18,17 +18,24 @@ The crop below is 160×160 dots, enlarged 3× with nearest-neighbour scaling so 
 
 View each file at 100% zoom. Each one is the exact 1-bit bitmap that would be sent to the printer.
 
-| Method | File | Note |
-| --- | --- | --- |
-| Grayscale (input) | [00-grayscale.png](images/astronaut/00-grayscale.png) | After resize, gamma 0.70, contrast 0.90, blur 0.35 px |
-| Floyd–Steinberg (Pillow) | [floyd.png](images/astronaut/floyd.png) | Fine detail, with directional worm patterns |
-| Serpentine Floyd–Steinberg | [serpentine.png](images/astronaut/serpentine.png) | Alternating scan direction changes the texture |
-| Jarvis–Judice–Ninke | [jjn.png](images/astronaut/jjn.png) | Wider error spread, smoother tones; preferred on paper in the XP-80T test |
-| Atkinson | [atkinson.png](images/astronaut/atkinson.png) | Spreads only 6/8 of the error, so highlights wash out and contrast goes up |
-| Bayer 8×8 | [bayer.png](images/astronaut/bayer.png) | Regular cross-hatch grid |
-| FFT high-pass threshold mask | [blue.png](images/astronaut/blue.png) | Rough blue-noise approximation, not an optimized mask; noisy |
+The two right-hand columns come from different sources:
 
-Ostromoukhov and Zhou–Fang are not shown because they need an external implementation. See below.
+- **This sample (screen preview):** what the previews above show on the NASA sample. Written when this page was created.
+- **XP-80T experiment log:** the original observations on a private portrait, copied from [experiments-xp80t.md](experiments-xp80t.md#compared-algorithms). They mix screen previews and physical prints, as recorded there.
+
+| Method | File | This sample (screen preview) | XP-80T experiment log |
+| --- | --- | --- | --- |
+| Grayscale (input) | [00-grayscale.png](images/astronaut/00-grayscale.png) | After resize, gamma 0.70, contrast 0.90, blur 0.35 px | Same preprocessing |
+| Floyd–Steinberg (Pillow) | [floyd.png](images/astronaut/floyd.png) | Fine detail, with directional worm patterns | Detail preserved; conspicuous texture/diagonal patterns on paper |
+| Serpentine Floyd–Steinberg | [serpentine.png](images/astronaut/serpentine.png) | Alternating scan direction changes the texture | Different but still noticeable texture |
+| Jarvis–Judice–Ninke | [jjn.png](images/astronaut/jjn.png) | Wider error spread, smoother tones | **Best-looking physical print in these comparisons** |
+| Atkinson | [atkinson.png](images/astronaut/atkinson.png) | Spreads only 6/8 of the error, so highlights wash out and contrast goes up | Paler, lost some dark detail |
+| Bayer 8×8 | [bayer.png](images/astronaut/bayer.png) | Regular cross-hatch grid | Regular grid was conspicuous |
+| FFT high-pass threshold mask | [blue.png](images/astronaut/blue.png) | Rough blue-noise approximation; noisy | Poor photographic preview; not a faithful optimized blue-noise algorithm |
+| Ostromoukhov | not rendered | — | Softer/less defined when actually printed |
+| Zhou–Fang | not rendered | — | Promising PNG preview, but JJN preferred on paper |
+
+Ostromoukhov and Zhou–Fang need an external implementation, so this page has no images for them. See below.
 
 ## Reproduce
 
