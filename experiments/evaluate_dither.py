@@ -50,7 +50,7 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     parser.add_argument("original", type=Path, help="Original source image (not the preprocessed grey)")
     parser.add_argument("bitmaps", type=Path, nargs="+", help="1-bit PNGs to evaluate")
-    parser.add_argument("--model", choices=["heat", "overlap"], default="heat")
+    parser.add_argument("--model", choices=["heat", "overlap", "square"], default="heat")
     parser.add_argument("--radii", type=float, nargs="+", help="Isolated-dot radii (default: model default)")
     parser.add_argument("--distance", type=float, default=30.0, help="Viewing distance in cm")
     parser.add_argument("--artifacts", type=Path, help="Write an artifact-map sheet (first radius) to this PNG")

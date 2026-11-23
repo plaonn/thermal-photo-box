@@ -71,5 +71,14 @@ class HeatModelTest(unittest.TestCase):
         self.assertTrue((black[8:-8, 8:-8] > 0.99).all())
 
 
+
+class SquareModelTest(unittest.TestCase):
+    def test_each_dot_fills_its_cell(self):
+        model = DotModel(kind="square")
+        c = coverage(single_dot(3), 4, model)
+        self.assertTrue(np.allclose(c[4:8, 4:8], 1.0))
+        self.assertAlmostEqual(float(c.sum()), 16.0)
+
+
 if __name__ == "__main__":
     unittest.main()

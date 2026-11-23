@@ -98,8 +98,9 @@ def main():
     sim.add_argument("image", type=Path)
     sim.add_argument("--output", type=Path, help="Output PNG (default: <image>-simulated.png)")
     sim.add_argument("--scale", type=int, default=8, help="Output pixels per printer dot")
-    sim.add_argument("--model", choices=["heat", "overlap"], default="heat",
-                     help="heat: summed Gaussian heat spots with a soft threshold; overlap: hard ellipses")
+    sim.add_argument("--model", choices=["heat", "overlap", "square"], default="heat",
+                     help="heat: summed Gaussian heat spots with a soft threshold; overlap: hard ellipses; "
+                          "square: each dot fills its cell, as on screen (no dot model)")
     sim.add_argument("--radius", type=float, help="Isolated-dot radius in dot pitches (default: 0.55 heat, 0.75 overlap)")
     sim.add_argument("--threshold", type=float, default=0.4, help="Heat model: development threshold (0..1)")
     sim.add_argument("--softness", type=float, default=0.08, help="Heat model: threshold softness")

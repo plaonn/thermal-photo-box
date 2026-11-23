@@ -29,7 +29,7 @@ Print an existing **1-bit, 576-pixel-wide** image without re-dithering:
 thermal-photo-box print output/jjn.png --density 4 --cut
 ```
 
-Preview an approximation of how a 1-bit image might look on paper. Dots are rendered as summed heat spots (or, with `--model overlap`, as hard overlapping ellipses) instead of square pixels. The model is **uncalibrated**; see the [dithering comparison](docs/dither-comparison.md#simulated-print-uncalibrated):
+Preview an approximation of how a 1-bit image might look on paper. Dots are rendered as summed heat spots (or, with `--model overlap`, as hard overlapping ellipses; `--model square` gives the plain square-pixel view for comparison) instead of square pixels. The model is **uncalibrated**; see the [dithering comparison](docs/dither-comparison.md#simulated-print-uncalibrated):
 
 ```bash
 thermal-photo-box simulate output/jjn.png --scale 8
@@ -49,7 +49,7 @@ On the tested portrait and paper, **Jarvis–Judice–Ninke (JJN)** with density
 
 See [XP-80T experiment log](docs/experiments-xp80t.md) for the device parameters, density commands, settings, alternatives tested and limitations.
 
-For an on-screen comparison of the methods, see the [dithering comparison](docs/dither-comparison.md). It uses a public-domain sample photo and shows previews, not printed results. It also scores simulated prints against the original (perceptual tone and texture error) and maps dithering artifacts such as worms, diagonal lines and grids. A gallery shows simulated prints of 24 methods, including 16 experimental ones that were never printed, on eight public-domain or CC0 samples. The most stable candidates, JJN and Atkinson with and without threshold noise, are [compared at several dot sizes](docs/candidates.md).
+For an on-screen comparison of the methods, see the [dithering comparison](docs/dither-comparison.md). It uses a public-domain sample photo and shows previews, not printed results. It also scores simulated prints against the original (perceptual tone and texture error) and maps dithering artifacts such as worms, diagonal lines and grids. A gallery shows simulated prints of 24 methods, including 16 experimental ones that were never printed, on eight public-domain or CC0 samples. The most stable candidates, JJN and Atkinson with and without threshold noise, are [compared at several dot sizes](docs/candidates.md). [What a square-pixel preview hides](docs/square-preview.md) explains why the plain on-screen view of a bitmap is misleading.
 
 ![Enlarged crops of each dithering method](docs/images/astronaut/detail.png)
 

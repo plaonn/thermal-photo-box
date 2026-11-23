@@ -10,8 +10,11 @@ Two dot models are available:
   head over successive lines is NOT modelled.
 - "overlap": each dot is a hard-edged anti-aliased ellipse; overlapping dots
   merge (a classic circular dot-overlap printer model).
+- "square": no dot model. Each dot fills its square cell exactly, as a 1-bit
+  image looks on screen. Useful as a baseline; `radius`, `aspect` and the
+  other shape parameters are ignored.
 
-In both models `radius` is the radius of an isolated dot in dot pitches, and
+In the heat and overlap models `radius` is the radius of an isolated dot in dot pitches, and
 `aspect` stretches it in the paper-feed (vertical) direction. Paper and ink are
 grey levels rather than pure white/black, mixed in linear reflectance.
 
@@ -23,10 +26,10 @@ from dataclasses import dataclass
 import numpy as np
 from PIL import Image
 
-MODELS = ("heat", "overlap")
+MODELS = ("heat", "overlap", "square")
 
 
-DEFAULT_RADIUS = {"heat": 0.55, "overlap": 0.75}
+DEFAULT_RADIUS = {"heat": 0.55, "overlap": 0.75, "square": 0.5}
 
 
 @dataclass(frozen=True)
@@ -36,7 +39,7 @@ class DotModel:
     paper: int = 245  # grey level of unprinted paper
     ink: int = 35  # grey level of a fully developed area
     blur: float = 0.10  # overlap model only: edge softness, dot pitches (Gaussian sigma)
-    kind: str = "heat"  # "heat" or "overlap"
+    kind: str = "heat"  # "heat", "overlap" or "square"
     threshold: float = 0.4  # heat model: development threshold, relative to one spot's peak
     softness: float = 0.08  # heat model: width of the sigmoid around the threshold
 
@@ -153,6 +156,9 @@ def simulate_reflectance(bitmap: Image.Image, scale: int = 8, model: DotModel = 
         coverage = _coverage_overlap(bitmap, scale, model)
         if model.blur > 0:
             coverage = gaussian_blur(coverage, model.blur * scale)
+    elif model.kind == "square":
+        ink = (np.asarray(bitmap.convert("L")) < 128).astype(np.float64)
+        coverage = np.repeat(np.repeat(ink, scale, axis=0), scale, axis=1)
     else:
         raise ValueError(f"unknown dot model: {model.kind}")
     paper = float(srgb_to_linear(model.paper / 255))
