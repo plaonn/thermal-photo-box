@@ -124,7 +124,7 @@ These maps show where the texture is more strongly aligned than random grain eve
 
 ![Artifact maps on the grey-patch chart](images/patches/artifacts.png)
 
-Maps for the NASA sample: [artifacts.png](images/astronaut/artifacts.png).
+Maps for other images are not stored. Generate them with `--artifacts` in `evaluate_dither.py` or `benchmark.py` (see [Reproduce](#reproduce)).
 
 On the patch chart, the maps pick out patterns that are visible in the simulated prints:
 
@@ -142,9 +142,44 @@ Random grain (FFT mask) mostly stays blank.
 - **Ostromoukhov** has the highest directional score at 0.65 on both samples. The log only says "softer/less defined"; the simulation suggests aligned structure as one possible cause.
 - **Graininess** is lowest for Floyd–Steinberg at small radii and roughly equal for all error-diffusion methods at 0.65. It does not explain the paper ranking.
 
-Limits: two images, uncalibrated parameters, and an approximate vision model. S-CIELAB is a standard model, but the directional and periodic measures are this project's own heuristics. They are checked against synthetic stripes and noise (`tests/test_evaluate.py`) and by eye against the maps, not against viewer ratings.
+#### Across more samples
 
-No dedicated calibration is planned for now. Real prints also vary with paper, density setting and temperature. Use the simulator for coarse decisions, such as whether a pattern clumps or how much a method darkens. Do not use it to separate methods whose scores are close, such as JJN and Zhou–Fang. When a real print clearly disagrees with the simulation, adjust `--radius`, `--threshold` and `--aspect` to match it, and record the print conditions and new values here.
+`experiments/benchmark.py` repeats the evaluation on eight images: the two above and six downloaded on demand. The downloads are pinned by SHA-256 and are not stored in this repository.
+
+| Sample | Content | Source and licence |
+| --- | --- | --- |
+| astronaut | portrait, detailed background | NASA, public domain |
+| sally-ride | portrait, smooth backdrop | NASA, public domain ([Commons](https://commons.wikimedia.org/wiki/File:Sally_Ride_(1984).jpg)) |
+| earthrise | dark scene, large black area | NASA / Bill Anders, public domain ([Commons](https://commons.wikimedia.org/wiki/File:NASA_Earthrise_AS08-14-2383_Apollo_8_1968-12-24.jpg)) |
+| rocket | sky gradient, smoke | SpaceX, public domain (scikit-image) |
+| coffee | bright scene, soft shading | Rachel Michetti, CC0 (scikit-image) |
+| chelsea | fur texture | Stefan van der Walt, CC0 (scikit-image) |
+| camera | grass texture, plain sky | Lav Varshney, CC0 (scikit-image) |
+| patches | ten uniform grey patches | synthetic |
+
+All numbers are in [benchmark.csv](benchmark.csv). Mean over the eight samples, heat model, radius 0.55 / 0.65:
+
+| Method | bias | tone | texture | directional | periodic |
+| --- | --- | --- | --- | --- | --- |
+| Floyd–Steinberg | +10.0 / −5.6 | 2.6 / 5.4 | 4.0 / 5.6 | 0.26 / 0.33 | 0.048 / 0.140 |
+| Serpentine FS | +9.9 / −5.8 | 2.6 / 5.5 | 4.2 / 5.8 | 0.21 / 0.33 | 0.044 / 0.122 |
+| JJN | +12.2 / −0.6 | 3.7 / 2.7 | 5.4 / 6.1 | 0.27 / 0.25 | 0.056 / 0.065 |
+| Atkinson | +11.1 / −0.1 | 4.3 / 5.5 | 4.5 / 5.2 | 0.31 / 0.29 | 0.110 / 0.122 |
+| Bayer 8×8 | +8.2 / −9.3 | 2.4 / 8.3 | 4.8 / 7.2 | 0.05 / 0.18 | 0.380 / 0.298 |
+| FFT mask | +12.2 / +0.4 | 3.9 / 1.8 | 9.6 / 10.9 | 0.19 / 0.21 | 0.056 / 0.054 |
+| Ostromoukhov | +11.2 / −3.5 | 3.3 / 3.7 | 4.8 / 5.8 | 0.27 / 0.34 | 0.045 / 0.084 |
+| Zhou–Fang | +10.8 / −3.9 | 3.3 / 3.3 | 4.9 / 5.7 | 0.17 / 0.20 | 0.043 / 0.078 |
+
+How consistent the rankings are across the eight images:
+
+- **The best method depends on the radius.** At 0.55, Floyd–Steinberg and serpentine FS have the lowest tone error among the error-diffusion methods on every image except the rocket, where Zhou–Fang is best. At 0.65, the order reverses: JJN and Zhou–Fang have lower tone error than Floyd–Steinberg on all eight images, and FS prints darker than the original on all eight. The model cannot pick a winner until the radius is measured on paper.
+- **At 0.65, JJN is the most tone-neutral error-diffusion method.** Its bias stays within −4.6 to +1.8 L\*. Floyd–Steinberg ranges from −13.0 to −1.0.
+- **Zhou–Fang is the least directional error-diffusion method** on all eight images at 0.65 and on six of eight at 0.55.
+- **Ostromoukhov** has the highest mean directional score at 0.65 and is the most directional method on four of the eight images.
+- **FFT mask** has the lowest tone error and the highest texture on every image at 0.65: coarse grain that averages out.
+- **Bayer** has the highest periodic score on all eight images at 0.55 and on seven at 0.65. It is the least directional at 0.55, because a grid has no single direction.
+
+Limits: eight images, uncalibrated parameters, and an approximate vision model. S-CIELAB is a standard model, but the directional and periodic measures are this project's own heuristics. They are checked against synthetic stripes and noise (`tests/test_evaluate.py`) and by eye against the maps, not against viewer ratings.
 
 ## Reproduce
 
@@ -158,6 +193,11 @@ D=docs/images/patches
 python experiments/evaluate_dither.py docs/sample/patches.png \
   $D/floyd.png $D/serpentine.png $D/jjn.png $D/atkinson.png $D/bayer.png $D/blue.png \
   --radii 0.55 0.65 --artifacts $D/artifacts.png      # add --model overlap for the other model
+
+# All eight samples, including Ostromoukhov and Zhou-Fang (about 3 minutes):
+git clone --depth 1 https://github.com/dalpil/structure-aware-dithering /tmp/sad
+python experiments/benchmark.py --external /tmp/sad --csv docs/benchmark.csv \
+  --artifacts output/benchmark-artifacts      # artifact maps for every sample, not committed
 ```
 
 To print the same set on a connected XP-80T, add `--print`. Add `--density N` only if you accept that the experimental density command may change persistent printer settings (see the README caution).
