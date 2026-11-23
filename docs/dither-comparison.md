@@ -164,6 +164,15 @@ Two sheets per sample, both rendered by the heat model at the default radius 0.5
 - **Whole image:** the full print, averaged down to 384 pixels wide. This is roughly how it looks from a normal distance and shows tone and large-scale differences. The red box on the original marks the crop.
 - **Crop:** 128×128 dots enlarged 3×, so individual dots and dither patterns are visible.
 
+Each sheet has one row per method family, so related methods sit side by side:
+
+1. JJN and its variants (threshold noise, 2×2 cells)
+2. Atkinson and its variants
+3. other large kernels like JJN (Sierra, Two-row Sierra, Stucki)
+4. Floyd–Steinberg and other small kernels (serpentine FS, Burkes, Shiau–Fan, Sierra Lite)
+5. adaptive, path and search methods (Ostromoukhov, Zhou–Fang, green noise, Riemersma, DBS)
+6. threshold masks and screens (Bayer, FFT mask, void-and-cluster, clustered dot)
+
 Jump to: [astronaut](#astronaut) · [sally-ride](#sally-ride) · [earthrise](#earthrise) · [rocket](#rocket) · [coffee](#coffee) · [chelsea](#chelsea) · [camera](#camera) · [patches](#patches)
 
 The dark sky of the rocket sample shows the artifacts most clearly (see its crop below):
@@ -329,6 +338,8 @@ git clone --depth 1 https://github.com/dalpil/structure-aware-dithering /tmp/sad
 python experiments/benchmark.py --external /tmp/sad --csv docs/benchmark.csv \
   --gallery docs/images/gallery \
   --artifacts output/benchmark-artifacts      # artifact maps for every sample, not committed
+# Only redraw the gallery, without the evaluation:
+python experiments/benchmark.py --external /tmp/sad --gallery docs/images/gallery --gallery-only
 ```
 
 To print the same set on a connected XP-80T, add `--print`. Add `--density N` only if you accept that the experimental density command may change persistent printer settings (see the README caution).

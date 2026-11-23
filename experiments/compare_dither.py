@@ -110,6 +110,22 @@ LABELS = {
 }
 
 
+def detail_crop(image, box, scale, model=None):
+    """Square crop `box` = (left, top, size), enlarged `scale` times.
+
+    Bitmaps are rendered by the dot simulator when `model` is given; otherwise,
+    and for greyscale images, the crop is enlarged with nearest-neighbour scaling.
+    """
+    left, top, size = box
+    if model is not None and image.mode == "1":
+        # Simulate with one dot of margin so edge dots see their neighbours.
+        padded = ImageOps.expand(image, border=2, fill=1)  # white margin outside the image
+        crop = padded.crop((left, top, left + size + 4, top + size + 4))
+        return simulate(crop, scale, model).crop((2 * scale, 2 * scale, (size + 2) * scale, (size + 2) * scale))
+    crop = image.convert("L").crop((left, top, left + size, top + size))
+    return crop.resize((size * scale, size * scale), Image.Resampling.NEAREST)
+
+
 def detail_sheet(source, images, box, scale, columns=3, model=None):
     """Source crop on the first row, then dithered crops in a grid.
 
@@ -127,15 +143,7 @@ def detail_sheet(source, images, box, scale, columns=3, model=None):
     draw = ImageDraw.Draw(sheet)
 
     def place(name, image, x, y):
-        if model is not None and image.mode == "1":
-            # Simulate with one dot of margin so edge dots see their neighbours.
-            padded = ImageOps.expand(image, border=2, fill=1)  # white margin outside the image
-            crop = padded.crop((left, top, left + size + 4, top + size + 4))
-            crop = simulate(crop, scale, model).crop((2 * scale, 2 * scale, (size + 2) * scale, (size + 2) * scale))
-        else:
-            crop = image.convert("L").crop((left, top, left + size, top + size))
-            crop = crop.resize((cell, cell), Image.Resampling.NEAREST)
-        sheet.paste(crop, (x, y + label_h))
+        sheet.paste(detail_crop(image, box, scale, model), (x, y + label_h))
         draw.text((x, y), LABELS.get(name, name), fill=0, font=font)
 
     place(source[0], source[1], (width - cell) // 2, pad)

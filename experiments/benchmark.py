@@ -37,7 +37,7 @@ from thermal_photo_box.evaluate import evaluate
 from thermal_photo_box.simulate import DEFAULT_RADIUS, DotModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compare_dither import LABELS, METHODS, detail_sheet  # noqa: E402
+from compare_dither import LABELS, METHODS, detail_crop  # noqa: E402
 from extra_dither import EXTRA_LABELS, EXTRA_METHODS  # noqa: E402
 
 LABELS.update(EXTRA_LABELS)
@@ -125,7 +125,53 @@ def dither_all(gray, external):
     return bitmaps
 
 
-def full_sheet(sample, reference, bitmaps, model, panel=384, columns=5):
+# Gallery rows: one family per row, so related methods can be compared side by side.
+GROUPS = (
+    ("JJN and variants", ("jjn", "jjn-tm32", "jjn-tm64", "jjn-2x2")),
+    ("Atkinson and variants", ("atkinson", "atkinson-tm32", "atkinson-tm64")),
+    ("Other large kernels (like JJN)", ("sierra", "sierra2", "stucki")),
+    ("Floyd-Steinberg and small kernels", ("floyd", "serpentine", "burkes", "shiau-fan", "sierra-lite")),
+    ("Adaptive, path and search methods", ("ostromoukhov", "zhoufang", "green-0.6", "riemersma", "dbs")),
+    ("Threshold masks and screens", ("bayer", "blue", "void-cluster", "clustered")),
+)
+
+
+def grouped_sheet(original, tiles, font_size=22):
+    """The original on the first row, then one row per method family with a heading.
+
+    `original` is (label, image); `tiles` maps method name to an image of the same size.
+    Families whose methods are all missing (e.g. without --external) are skipped.
+    """
+    w, h = original[1].size
+    font = ImageFont.load_default(size=font_size)
+    heading = ImageFont.load_default(size=round(font_size * 1.3))
+    label_h, pad, head_h = round(font_size * 1.5), round(font_size * 0.6), round(font_size * 3.4)
+    rows = [(title, [n for n in names if n in tiles]) for title, names in GROUPS]
+    rows = [(title, names) for title, names in rows if names]
+    missing = sorted(set(tiles) - {n for _, names in rows for n in names})
+    if missing:
+        rows.append(("Other", missing))
+    columns = max(len(names) for _, names in rows)
+    width = columns * (w + pad) + pad
+    height = pad + label_h + h + pad + len(rows) * (head_h + label_h + h + pad)
+    sheet = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(sheet)
+    draw.text((pad, pad), original[0], fill=0, font=font)
+    sheet.paste(original[1].convert("RGB"), (pad, pad + label_h))
+    y = pad + label_h + h + pad
+    for title, names in rows:
+        draw.line((pad, y + pad, width - pad, y + pad), fill=(170, 170, 170), width=2)
+        draw.text((pad, y + 2 * pad), title, fill=0, font=heading)
+        y += head_h
+        for i, name in enumerate(names):
+            x = pad + i * (w + pad)
+            draw.text((x, y), LABELS.get(name, name), fill=0, font=font)
+            sheet.paste(tiles[name].convert("RGB"), (x, y + label_h))
+        y += label_h + h + pad
+    return sheet
+
+
+def full_sheet(sample, reference, bitmaps, model, panel=384):
     """Whole image: the original (gallery crop outlined) and every method as a simulated print.
 
     Each print is simulated at 4 samples per dot and averaged down to `panel` pixels
@@ -134,27 +180,23 @@ def full_sheet(sample, reference, bitmaps, model, panel=384, columns=5):
     from thermal_photo_box.simulate import linear_to_srgb, simulate_reflectance
 
     h = round(reference.height * panel / reference.width)
-    cells = []
     original = reference.convert("RGB")
     left, top = DETAIL[sample]
     ImageDraw.Draw(original).rectangle((left, top, left + DETAIL_SIZE, top + DETAIL_SIZE),
                                        outline=(230, 30, 30), width=4)
-    cells.append((f"{sample} (original)", original.resize((panel, h), Image.Resampling.LANCZOS)))
+    tiles = {}
     for name, bitmap in bitmaps.items():
         y = simulate_reflectance(bitmap, 4, model).astype(np.float32)
         small = np.asarray(Image.fromarray(y, mode="F").resize((panel, h), Image.Resampling.BOX))
-        cells.append((LABELS.get(name, name), Image.fromarray(np.rint(linear_to_srgb(small) * 255).astype(np.uint8))))
-    font = ImageFont.load_default(size=22)
-    label_h, pad = 32, 12
-    rows = (len(cells) + columns - 1) // columns
-    sheet = Image.new("RGB", (columns * (panel + pad) + pad, rows * (h + label_h + pad) + pad), "white")
-    draw = ImageDraw.Draw(sheet)
-    for i, (name, img) in enumerate(cells):
-        x = pad + (i % columns) * (panel + pad)
-        y0 = pad + (i // columns) * (h + label_h + pad)
-        draw.text((x, y0), name, fill=0, font=font)
-        sheet.paste(img, (x, y0 + label_h))
-    return sheet
+        tiles[name] = Image.fromarray(np.rint(linear_to_srgb(small) * 255).astype(np.uint8))
+    return grouped_sheet((f"{sample} (original)", original.resize((panel, h), Image.Resampling.LANCZOS)), tiles)
+
+
+def detail_grouped_sheet(sample, reference, bitmaps, model, scale=3):
+    """Enlarged DETAIL_SIZE crops of the original and every method as simulated prints."""
+    box = (*DETAIL[sample], DETAIL_SIZE)
+    tiles = {name: detail_crop(bitmap, box, scale, model) for name, bitmap in bitmaps.items()}
+    return grouped_sheet((f"{sample} (original)", detail_crop(reference, box, scale)), tiles, font_size=24)
 
 
 def score(metric, value):
@@ -176,6 +218,8 @@ def main():
                              "(SAMPLE-detail.jpg) of every method as simulated prints to this directory")
     parser.add_argument("--gallery-radius", type=float, default=DEFAULT_RADIUS["heat"],
                         help="Heat-model radius for the gallery (default: model default)")
+    parser.add_argument("--gallery-only", action="store_true",
+                        help="Only write the gallery; skip the evaluation")
     args = parser.parse_args()
 
     rows = []
@@ -187,12 +231,13 @@ def main():
         bitmaps = dither_all(gray, args.external)
         if args.gallery:
             args.gallery.mkdir(parents=True, exist_ok=True)
-            box = (*DETAIL[sample], DETAIL_SIZE)
-            sheet = detail_sheet((f"{sample} (original)", reference), list(bitmaps.items()), box, 3,
-                                 columns=5, model=DotModel(radius=args.gallery_radius))
-            sheet.save(args.gallery / f"{sample}-detail.jpg", quality=80, optimize=True)
-            full_sheet(sample, reference, bitmaps, DotModel(radius=args.gallery_radius)).save(
+            model = DotModel(radius=args.gallery_radius)
+            detail_grouped_sheet(sample, reference, bitmaps, model).save(
+                args.gallery / f"{sample}-detail.jpg", quality=80, optimize=True)
+            full_sheet(sample, reference, bitmaps, model).save(
                 args.gallery / f"{sample}-full.jpg", quality=80, optimize=True)
+            if args.gallery_only:
+                continue
         for n, radius in enumerate(args.radii):
             model = DotModel(radius=radius)
             maps = []
@@ -205,6 +250,8 @@ def main():
                 args.artifacts.mkdir(parents=True, exist_ok=True)
                 artifact_sheet(maps).save(args.artifacts / f"{sample}.png", optimize=True)
 
+    if args.gallery_only:
+        return
     if args.csv:
         args.csv.parent.mkdir(parents=True, exist_ok=True)
         with args.csv.open("w", newline="") as f:
