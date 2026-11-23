@@ -48,8 +48,6 @@ COMMONS = "https://upload.wikimedia.org/wikipedia/commons/"
 SAMPLES = {
     "astronaut": (ROOT / "docs/sample/astronaut.png", None,
                   "portrait, detailed background", "NASA, public domain (via scikit-image)"),
-    "astronaut-face": (ROOT / "docs/sample/astronaut.png", None,
-                       "face crop, upscaled 3.2x (smooth)", "NASA, public domain (via scikit-image)"),
     "sally-ride": (COMMONS + "0/0c/Sally_Ride_%281984%29.jpg",
                    "ea25b741c25978a84efbd5c0c333c61e59486768178799c7f32b05d07e851cef",
                    "portrait, smooth backdrop", "NASA, public domain (Wikimedia Commons)"),
@@ -72,9 +70,9 @@ SAMPLES = {
                 "ten uniform grey patches", "synthetic (experiments/make_test_chart.py)"),
 }
 # Crops of a source image, in source pixels (left, top, right, bottom).
-CROPS = {"astronaut-face": (140, 10, 320, 190)}
+CROPS = {}
 # Gallery crop per sample, in 576-dot coordinates (left, top); all crops are DETAIL_SIZE square.
-DETAIL = {"astronaut": (190, 50), "astronaut-face": (170, 230), "sally-ride": (200, 180),
+DETAIL = {"astronaut": (190, 50), "sally-ride": (200, 180),
           "earthrise": (262, 236), "rocket": (190, 220), "coffee": (330, 40), "chelsea": (150, 90),
           "camera": (400, 180), "patches": (165, 96)}
 DETAIL_SIZE = 128

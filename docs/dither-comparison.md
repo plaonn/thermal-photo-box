@@ -144,12 +144,11 @@ Random grain (FFT mask) mostly stays blank.
 
 #### Across more samples
 
-`experiments/benchmark.py` repeats the evaluation on nine images. Two of them, the NASA sample and the patch chart, are stored here. A face crop of the NASA sample is cut from the stored file. The other six are downloaded on demand, pinned by SHA-256, and not stored in this repository.
+`experiments/benchmark.py` repeats the evaluation on eight images. Two of them, the NASA sample and the patch chart, are stored here. The other six are downloaded on demand, pinned by SHA-256, and not stored in this repository.
 
 | Sample | Content | Source and licence |
 | --- | --- | --- |
 | astronaut | portrait, detailed background | NASA, public domain |
-| astronaut-face | face crop of the same photo, upscaled 3.2×, so smooth and soft | NASA, public domain |
 | sally-ride | portrait, smooth backdrop | NASA, public domain ([Commons](https://commons.wikimedia.org/wiki/File:Sally_Ride_(1984).jpg)) |
 | earthrise | dark scene, large black area | NASA / Bill Anders, public domain ([Commons](https://commons.wikimedia.org/wiki/File:NASA_Earthrise_AS08-14-2383_Apollo_8_1968-12-24.jpg)) |
 | rocket | dark sky gradient | SpaceX, public domain (scikit-image) |
@@ -164,11 +163,10 @@ Each sheet shows one 128×128-dot crop: the unadjusted original on top, then eve
 
 ![Sample overview with crop positions](images/gallery/overview.jpg)
 
-| | | |
-| --- | --- | --- |
-| [astronaut](images/gallery/astronaut.jpg) | [astronaut-face](images/gallery/astronaut-face.jpg) | [sally-ride](images/gallery/sally-ride.jpg) |
-| [earthrise](images/gallery/earthrise.jpg) | [rocket](images/gallery/rocket.jpg) | [coffee](images/gallery/coffee.jpg) |
-| [chelsea](images/gallery/chelsea.jpg) | [camera](images/gallery/camera.jpg) | [patches](images/gallery/patches.jpg) |
+| | | | |
+| --- | --- | --- | --- |
+| [astronaut](images/gallery/astronaut.jpg) | [sally-ride](images/gallery/sally-ride.jpg) | [earthrise](images/gallery/earthrise.jpg) | [rocket](images/gallery/rocket.jpg) |
+| [coffee](images/gallery/coffee.jpg) | [chelsea](images/gallery/chelsea.jpg) | [camera](images/gallery/camera.jpg) | [patches](images/gallery/patches.jpg) |
 
 The dark sky of the rocket sample shows the artifacts most clearly:
 
@@ -181,29 +179,29 @@ The dark sky of the rocket sample shows the artifacts most clearly:
 
 ##### Numbers
 
-All numbers are in [benchmark.csv](benchmark.csv). Zhou–Fang uses random noise, so its numbers change slightly between runs (in the second decimal place). Mean over the nine samples, heat model, radius 0.55 / 0.65:
+All numbers are in [benchmark.csv](benchmark.csv). Zhou–Fang uses random noise, so its numbers change slightly between runs (in the second decimal place). Mean over the eight samples, heat model, radius 0.55 / 0.65:
 
 | Method | bias | tone | texture | directional | periodic |
 | --- | --- | --- | --- | --- | --- |
-| Floyd–Steinberg | +10.1 / −5.0 | 2.7 / 5.5 | 3.9 / 5.7 | 0.25 / 0.33 | 0.056 / 0.130 |
-| Serpentine FS | +10.0 / −5.2 | 2.7 / 5.5 | 4.1 / 5.9 | 0.21 / 0.33 | 0.051 / 0.114 |
-| JJN | +12.2 / −0.3 | 3.9 / 2.7 | 5.4 / 6.1 | 0.27 / 0.26 | 0.060 / 0.061 |
-| Atkinson | +11.4 / +0.6 | 4.2 / 5.6 | 4.5 / 5.2 | 0.31 / 0.30 | 0.112 / 0.112 |
-| Bayer 8×8 | +8.3 / −8.7 | 2.4 / 8.4 | 4.7 / 7.3 | 0.06 / 0.18 | 0.356 / 0.279 |
-| FFT mask | +12.2 / +0.7 | 4.1 / 1.8 | 9.6 / 10.9 | 0.19 / 0.21 | 0.055 / 0.053 |
-| Ostromoukhov | +11.2 / −3.1 | 3.5 / 3.7 | 4.7 / 5.8 | 0.28 / 0.35 | 0.049 / 0.078 |
-| Zhou–Fang | +10.8 / −3.6 | 3.5 / 3.3 | 4.9 / 5.7 | 0.17 / 0.20 | 0.048 / 0.072 |
+| Floyd–Steinberg | +10.0 / −5.6 | 2.6 / 5.4 | 4.0 / 5.6 | 0.26 / 0.33 | 0.048 / 0.140 |
+| Serpentine FS | +9.9 / −5.8 | 2.6 / 5.5 | 4.2 / 5.8 | 0.21 / 0.33 | 0.044 / 0.122 |
+| JJN | +12.2 / −0.6 | 3.7 / 2.7 | 5.4 / 6.1 | 0.27 / 0.26 | 0.056 / 0.065 |
+| Atkinson | +11.1 / −0.1 | 4.3 / 5.5 | 4.5 / 5.2 | 0.31 / 0.29 | 0.110 / 0.122 |
+| Bayer 8×8 | +8.2 / −9.3 | 2.4 / 8.3 | 4.8 / 7.2 | 0.05 / 0.18 | 0.380 / 0.298 |
+| FFT mask | +12.2 / +0.4 | 3.9 / 1.8 | 9.7 / 10.9 | 0.19 / 0.21 | 0.056 / 0.054 |
+| Ostromoukhov | +11.2 / −3.5 | 3.3 / 3.7 | 4.8 / 5.8 | 0.27 / 0.34 | 0.045 / 0.084 |
+| Zhou–Fang | +10.8 / −3.9 | 3.3 / 3.3 | 4.9 / 5.7 | 0.17 / 0.20 | 0.043 / 0.078 |
 
-How consistent the rankings are across the nine images:
+How consistent the rankings are across the eight images:
 
-- **The best method depends on the radius.** At 0.55, Floyd–Steinberg or serpentine FS has the lowest tone error among the error-diffusion methods on eight of nine images; on the rocket, Zhou–Fang does. At 0.65, the order reverses: JJN and Zhou–Fang have lower tone error than Floyd–Steinberg on all nine images, and FS prints darker than the original on all nine. The model cannot pick a winner until the radius is measured on paper.
-- **At 0.65, JJN is the most tone-neutral error-diffusion method.** Its bias stays within −4.6 to +2.2 L\*. Floyd–Steinberg ranges from −13.0 to −0.6.
-- **Zhou–Fang is the least directional error-diffusion method** on all nine images at 0.65 and on seven of nine at 0.55.
-- **Ostromoukhov** has the highest mean directional score at 0.65 and is the most directional method on five of the nine images.
+- **The best method depends on the radius.** At 0.55, Floyd–Steinberg or serpentine FS has the lowest tone error among the error-diffusion methods on seven of eight images; on the rocket, Zhou–Fang does. At 0.65, the order reverses: JJN and Zhou–Fang have lower tone error than Floyd–Steinberg on all eight images, and FS prints darker than the original on all eight. The model cannot pick a winner until the radius is measured on paper.
+- **At 0.65, JJN is the most tone-neutral error-diffusion method.** Its bias stays within −4.6 to +1.8 L\*. Floyd–Steinberg ranges from −13.0 to −1.0.
+- **Zhou–Fang is the least directional error-diffusion method** on all eight images at 0.65 and on six of eight at 0.55.
+- **Ostromoukhov** has the highest mean directional score at 0.65 and is the most directional method on four of the eight images.
 - **FFT mask** has the lowest tone error and the highest texture on every image at 0.65: coarse grain that averages out.
-- **Bayer** has the highest periodic score on all nine images at 0.55 and on eight at 0.65. It is the least directional at 0.55, because a grid has no single direction.
+- **Bayer** has the highest periodic score on all eight images at 0.55 and on seven at 0.65. It is the least directional at 0.55, because a grid has no single direction.
 
-Limits: nine images, uncalibrated parameters, and an approximate vision model. S-CIELAB is a standard model, but the directional and periodic measures are this project's own heuristics. They are checked against synthetic stripes and noise (`tests/test_evaluate.py`) and by eye against the maps, not against viewer ratings.
+Limits: eight images, uncalibrated parameters, and an approximate vision model. S-CIELAB is a standard model, but the directional and periodic measures are this project's own heuristics. They are checked against synthetic stripes and noise (`tests/test_evaluate.py`) and by eye against the maps, not against viewer ratings.
 
 ## Reproduce
 
@@ -218,7 +216,7 @@ python experiments/evaluate_dither.py docs/sample/patches.png \
   $D/floyd.png $D/serpentine.png $D/jjn.png $D/atkinson.png $D/bayer.png $D/blue.png \
   --radii 0.55 0.65 --artifacts $D/artifacts.png      # add --model overlap for the other model
 
-# All nine samples, including Ostromoukhov and Zhou-Fang (about 3 minutes):
+# All eight samples, including Ostromoukhov and Zhou-Fang (about 3 minutes):
 git clone --depth 1 https://github.com/dalpil/structure-aware-dithering /tmp/sad
 python experiments/benchmark.py --external /tmp/sad --csv docs/benchmark.csv \
   --gallery docs/images/gallery \
