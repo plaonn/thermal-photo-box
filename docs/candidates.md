@@ -67,6 +67,76 @@ Mean over the eight samples of the [dithering comparison](dither-comparison.md#a
 
 If the dot size is unknown, **JJN + noise 64** is the safest candidate: its tone error is close to the best at every radius from 0.55 up, and it has the fewest directional patterns of the JJN family. **Atkinson + noise 64** keeps Atkinson's look (solid highlights and shadows) without its diagonal lines, but loses more shadow detail with large dots (tone error 8.4 against 7.0 at 0.75). Plain JJN and Atkinson remain the references to print next to them.
 
+## Improvements (experimental)
+
+What the print model shows (dot gain closes dark gaps, and the arrangement of dots turns into tone) suggests four changes to JJN. Each was compared with JJN and JJN + noise 64 at the same four radii. "Ink" below means the developed, dark area of the thermal paper.
+
+| Method | What it is |
+| --- | --- |
+| JJN, model-based | error diffusion against the predicted print (after Pappas & Neuhoff). Firing a dot adds the darkness the heat model predicts given the seven already-decided neighbours (designed at radius 0.65), and the error is measured against that, not against a black square. Its input is the linear-light target, with no gamma preprocessing |
+| JJN, model-based + noise 64 | the same with blue-noise threshold noise |
+| JJN + noise 64, paired shadow holes | in areas darker than grey 96, every white dot is extended to the dot below it, so holes are two dots tall and survive heat spread |
+| JJN + noise 64, 7/8 error | JJN that diffuses only 7/8 of the error, a mild form of Atkinson |
+| JJN + adaptive noise | noise 64 in flat areas, a quarter of it at edges |
+
+Mean over the eight samples; all values are in [improved.csv](improved.csv).
+
+| Method | Radius | bias | tone | texture | directional | periodic |
+| --- | --- | --- | --- | --- | --- | --- |
+| JJN | 0.45 | +24.1 | 7.7 | 5.7 | 0.30 | 0.114 |
+| | 0.55 | +12.2 | 3.7 | 5.4 | 0.27 | 0.056 |
+| | 0.65 | −0.6 | 2.7 | 6.1 | 0.26 | 0.065 |
+| | 0.75 | −11.5 | 6.6 | 6.3 | 0.27 | 0.144 |
+| JJN + noise 64 | 0.45 | +24.1 | 7.7 | 5.8 | 0.18 | 0.107 |
+| | 0.55 | +11.9 | 3.5 | 5.5 | 0.17 | 0.048 |
+| | 0.65 | −1.4 | 2.9 | 6.2 | 0.18 | 0.062 |
+| | 0.75 | −12.5 | 7.0 | 6.3 | 0.21 | 0.135 |
+| JJN, model-based | 0.45 | +16.0 | 3.8 | 11.6 | 0.31 | 0.080 |
+| | 0.55 | +8.1 | 2.7 | 11.8 | 0.32 | 0.077 |
+| | 0.65 | +0.3 | 1.1 | 9.0 | 0.32 | 0.073 |
+| | 0.75 | −10.8 | 5.8 | 7.3 | 0.28 | 0.065 |
+| JJN, model-based + noise 64 | 0.45 | +19.8 | 5.7 | 10.9 | 0.26 | 0.053 |
+| | 0.55 | +11.0 | 3.2 | 11.1 | 0.26 | 0.046 |
+| | 0.65 | +0.8 | 1.9 | 8.5 | 0.26 | 0.041 |
+| | 0.75 | −12.1 | 5.8 | 6.8 | 0.26 | 0.087 |
+| JJN + noise 64, paired shadow holes | 0.45 | +23.7 | 7.4 | 7.4 | 0.26 | 0.079 |
+| | 0.55 | +13.7 | 4.8 | 7.5 | 0.24 | 0.044 |
+| | 0.65 | +1.7 | 2.9 | 7.3 | 0.21 | 0.035 |
+| | 0.75 | −11.4 | 7.2 | 7.2 | 0.18 | 0.111 |
+| JJN + noise 64, 7/8 error | 0.45 | +23.2 | 7.1 | 5.2 | 0.20 | 0.171 |
+| | 0.55 | +11.4 | 3.3 | 5.2 | 0.18 | 0.094 |
+| | 0.65 | −1.2 | 4.0 | 6.1 | 0.18 | 0.079 |
+| | 0.75 | −11.7 | 7.6 | 6.5 | 0.22 | 0.152 |
+| JJN + adaptive noise | 0.45 | +24.1 | 7.7 | 5.8 | 0.18 | 0.109 |
+| | 0.55 | +11.9 | 3.5 | 5.5 | 0.17 | 0.049 |
+| | 0.65 | −1.3 | 2.9 | 6.2 | 0.19 | 0.062 |
+| | 0.75 | −12.3 | 6.9 | 6.4 | 0.22 | 0.135 |
+
+- **Model-based diffusion has the best tone at every radius**, even away from the radius it was designed for (1.1 against 2.7 for JJN at 0.65, 3.8 against 7.7 at 0.45). It is also the only method whose bias does not shift by a full 10–13 L\* per 0.1 of radius at the light end.
+- **But it draws lines.** Texture is about twice JJN's, and the sheets show why: because a dot next to existing dots adds less darkness, the method prefers to grow chains, and flat mid and dark tones turn into vertical and diagonal stripes (the rocket sky below). The metrics understate this; it is clearly visible. Noise 64 breaks the stripes into worms and lowers the periodic score below JJN + noise 64 at every radius, but texture stays high. Not usable as is; it would need a penalty for chains, or a model that is not causal row by row.
+- **A shared-interaction variant failed.** Splitting each neighbour interaction between the two dots (half each, undecided neighbours weighted by the local darkness) printed 15 L\* too dark: heat development is a threshold effect, so the interactions are not pairwise.
+- **Paired shadow holes** lower the directional score at large radii (0.18 against 0.21 at 0.75) and periodic structure at every radius, but raise texture by about 1–2 at every radius and make the print lighter. A trade, not a clear gain.
+- **7/8 error** helps tone only at 0.55 (3.3 against 3.5) and is worse at 0.65 and above (4.0 against 2.9 at 0.65), with more periodic structure, like Atkinson.
+- **Adaptive noise** is within 0.3 L\* bias and 0.1 on every other metric of JJN + noise 64. Weaker noise at edges changes nothing measurable.
+
+**JJN + noise 64 remains the safest choice.** Model-based diffusion is the only idea with a large tone gain and is worth pursuing, but only if its stripes can be removed.
+
+### Sheets
+
+Same layout as the candidate sheets, for three samples.
+
+![rocket: enlarged crop, improvements at four radii](images/improved/rocket-detail.jpg)
+
+![rocket: whole image, improvements at four radii](images/improved/rocket-full.jpg)
+
+![sally-ride: whole image, improvements at four radii](images/improved/sally-ride-full.jpg)
+
+![sally-ride: enlarged crop, improvements at four radii](images/improved/sally-ride-detail.jpg)
+
+![patches: whole image, improvements at four radii](images/improved/patches-full.jpg)
+
+![patches: enlarged crop, improvements at four radii](images/improved/patches-detail.jpg)
+
 ## Sheets
 
 Each sample has two sheets: one row per method, one column per radius.
@@ -128,6 +198,8 @@ Jump to: [astronaut](#astronaut) · [sally-ride](#sally-ride) · [earthrise](#ea
 
 ```bash
 python experiments/candidates.py --output docs/images/candidates --csv docs/candidates.csv   # a few minutes
+python experiments/candidates.py --methods jjn jjn-tm64 jjn-model jjn-model-tm64 jjn-tm64-pairs jjn-tm64-loss jjn-tm64-adaptive \
+    --output output/improved --csv docs/improved.csv   # improvements; copy the rocket, sally-ride and patches sheets to docs/images/improved
 ```
 
 The samples are downloaded on first use and checked against pinned SHA-256 hashes; see [`experiments/benchmark.py`](../experiments/benchmark.py) for their sources and licences.

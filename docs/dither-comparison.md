@@ -39,10 +39,13 @@ Ostromoukhov and Zhou–Fang need an external implementation, so this page has n
 
 ## Simulated print (uncalibrated)
 
-On paper a thermal dot is not a square pixel. `thermal-photo-box simulate` renders a 1-bit image at higher resolution with one of two dot models:
+The XP-80T is a direct thermal printer: there is no ink or ribbon, and the heated paper surface itself turns dark. In these documents and in the code, **"ink" means the developed (darkened) area of the paper**, and "paper" the undeveloped area.
+
+On paper a thermal dot is not a square pixel. `thermal-photo-box simulate` renders a 1-bit image at higher resolution with one of these dot models:
 
 - **`heat` (default):** each fired element deposits a Gaussian heat spot on the paper. Spots from neighbouring dots **add up**, and the paper darkens along a soft threshold of the summed heat. An isolated dot therefore stays small, while the heat tails of adjacent dots fill the gaps between them. This stands in for heat spreading sideways in the paper. Defaults: isolated-dot radius 0.55, threshold 0.4, softness 0.08.
 - **`overlap`:** each dot is a hard-edged ellipse and overlapping dots merge (the classic circular dot-overlap model). Default radius 0.75.
+- **`square`:** no dot model; each dot fills its cell exactly, as on screen. A baseline for comparison, see [What a square-pixel preview hides](square-preview.md).
 
 In both models the dot is `--aspect` (default 1.15) times taller in the paper-feed direction. Paper and black are grey levels (245 and 35) rather than pure white and black. **All parameters are guesses, not measurements from the XP-80T.** Heat build-up in the print head over successive lines is not modelled.
 

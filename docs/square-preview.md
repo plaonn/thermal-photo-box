@@ -12,7 +12,7 @@ Four renderings are compared:
 
 ## Tone: the screen is right by accident
 
-Flat grey levels dithered with JJN, apparent lightness in L\* (paper and ink grey levels as in the print model):
+Flat grey levels dithered with JJN, apparent lightness in L\* (paper and ink grey levels as in the print model; "ink" is the developed, dark area of the thermal paper):
 
 | Grey | Target | Screen (sRGB averaging) | Square dots | Heat 0.55 | Heat 0.65 |
 | --- | --- | --- | --- | --- | --- |

@@ -31,6 +31,9 @@ from benchmark import (DETAIL, DETAIL_SIZE, METRICS, ROOT, SAMPLES, fetch, group
                        outlined_original, print_thumbnail)
 from compare_dither import LABELS, METHODS, detail_crop  # noqa: E402
 from extra_dither import EXTRA_METHODS  # noqa: E402
+from model_dither import IMPROVED, IMPROVED_LABELS  # noqa: E402
+
+LABELS.update(IMPROVED_LABELS)
 
 CANDIDATES = ("jjn", "jjn-tm32", "jjn-tm64", "atkinson", "atkinson-tm32", "atkinson-tm64")
 RADII = (0.45, 0.55, 0.65, 0.75)
@@ -54,6 +57,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0],
                                      formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     parser.add_argument("--samples", nargs="+", choices=SAMPLES, default=list(SAMPLES))
+    parser.add_argument("--methods", nargs="+", default=list(CANDIDATES),
+                        choices=list(CANDIDATES) + list(IMPROVED),
+                        help="Methods to compare (default: the six candidates)")
     parser.add_argument("--radii", type=float, nargs="+", default=list(RADII))
     parser.add_argument("--distance", type=float, default=30.0, help="Viewing distance in cm")
     parser.add_argument("--cache", type=Path, default=ROOT / "output/samples")
@@ -68,7 +74,14 @@ def main():
         print(f"Evaluating {sample}...", flush=True)
         gray = preprocess(path, WIDTH, 0.70, 0.90, 0.35)
         reference = preprocess(path, WIDTH, 1.0, 1.0, 0.0)
-        bitmaps = {name: methods[name](gray) for name in CANDIDATES}
+        blurred = preprocess(path, WIDTH, 1.0, 1.0, 0.35)  # input of the model-based methods
+        bitmaps = {}
+        for name in args.methods:
+            if name in IMPROVED:
+                method, kind = IMPROVED[name]
+                bitmaps[name] = method(blurred if kind == "reference" else gray)
+            else:
+                bitmaps[name] = methods[name](gray)
         if args.output:
             args.output.mkdir(parents=True, exist_ok=True)
             for detail, suffix in ((False, "full"), (True, "detail")):
@@ -90,7 +103,7 @@ def main():
 
     print(f"\nMean over {len(args.samples)} samples (bias: mean, others: mean)")
     print(f"{'method':<16}{'radius':>7}" + "".join(f"{m:>13}" for m in METRICS))
-    for name in CANDIDATES:
+    for name in args.methods:
         for radius in args.radii:
             at = [r for r in rows if r["method"] == name and r["radius"] == radius]
             print(f"{name:<16}{radius:>7}" + "".join(f"{np.mean([r[m] for r in at]):>13.3f}" for m in METRICS))
