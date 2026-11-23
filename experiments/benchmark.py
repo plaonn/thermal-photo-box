@@ -122,28 +122,36 @@ def dither_all(gray, external):
     return bitmaps
 
 
-def overview(references, columns=3, thumb=288):
-    """Thumbnails of every sample with its gallery crop outlined."""
-    font = ImageFont.load_default(size=20)
-    label_h, pad = 28, 10
+def full_sheet(sample, reference, bitmaps, model, panel=384, columns=3):
+    """Whole image: the original (gallery crop outlined) and every method as a simulated print.
+
+    Each print is simulated at 4 samples per dot and averaged down to `panel` pixels
+    wide in linear reflectance, roughly how the print looks from a normal distance.
+    """
+    from compare_dither import LABELS
+    from thermal_photo_box.simulate import linear_to_srgb, simulate_reflectance
+
+    h = round(reference.height * panel / reference.width)
     cells = []
-    for name, ref in references:
-        img = ref.convert("RGB")
-        left, top = DETAIL[name]
-        ImageDraw.Draw(img).rectangle((left, top, left + DETAIL_SIZE, top + DETAIL_SIZE), outline=(230, 30, 30), width=4)
-        img.thumbnail((thumb, 10 * thumb))
-        cells.append((name, img))
+    original = reference.convert("RGB")
+    left, top = DETAIL[sample]
+    ImageDraw.Draw(original).rectangle((left, top, left + DETAIL_SIZE, top + DETAIL_SIZE),
+                                       outline=(230, 30, 30), width=4)
+    cells.append((f"{sample} (original)", original.resize((panel, h), Image.Resampling.LANCZOS)))
+    for name, bitmap in bitmaps.items():
+        y = simulate_reflectance(bitmap, 4, model).astype(np.float32)
+        small = np.asarray(Image.fromarray(y, mode="F").resize((panel, h), Image.Resampling.BOX))
+        cells.append((LABELS.get(name, name), Image.fromarray(np.rint(linear_to_srgb(small) * 255).astype(np.uint8))))
+    font = ImageFont.load_default(size=22)
+    label_h, pad = 32, 12
     rows = (len(cells) + columns - 1) // columns
-    row_h = [max(img.height for _, img in cells[r * columns:(r + 1) * columns]) for r in range(rows)]
-    sheet = Image.new("RGB", (columns * (thumb + pad) + pad, sum(row_h) + rows * (label_h + pad) + pad), "white")
+    sheet = Image.new("RGB", (columns * (panel + pad) + pad, rows * (h + label_h + pad) + pad), "white")
     draw = ImageDraw.Draw(sheet)
-    y = pad
-    for r in range(rows):
-        for c, (name, img) in enumerate(cells[r * columns:(r + 1) * columns]):
-            x = pad + c * (thumb + pad)
-            draw.text((x, y), name, fill=0, font=font)
-            sheet.paste(img, (x, y + label_h))
-        y += row_h[r] + label_h + pad
+    for i, (name, img) in enumerate(cells):
+        x = pad + (i % columns) * (panel + pad)
+        y0 = pad + (i // columns) * (h + label_h + pad)
+        draw.text((x, y0), name, fill=0, font=font)
+        sheet.paste(img, (x, y0 + label_h))
     return sheet
 
 
@@ -162,26 +170,27 @@ def main():
     parser.add_argument("--csv", type=Path, help="Write every result to this CSV file")
     parser.add_argument("--artifacts", type=Path, help="Write artifact-map sheets (first radius) to this directory")
     parser.add_argument("--gallery", type=Path,
-                        help="Write simulated-print crops of every method per sample, plus overview.jpg, to this directory")
+                        help="Write, per sample, a whole-image view (SAMPLE-full.jpg) and enlarged crops "
+                             "(SAMPLE-detail.jpg) of every method as simulated prints to this directory")
     parser.add_argument("--gallery-radius", type=float, default=DEFAULT_RADIUS["heat"],
                         help="Heat-model radius for the gallery (default: model default)")
     args = parser.parse_args()
 
     rows = []
-    references = []
     for sample in args.samples:
         path = fetch(sample, args.cache)
         print(f"Evaluating {sample}...", flush=True)
         gray = preprocess(path, WIDTH, 0.70, 0.90, 0.35)
         reference = preprocess(path, WIDTH, 1.0, 1.0, 0.0)
         bitmaps = dither_all(gray, args.external)
-        references.append((sample, reference))
         if args.gallery:
             args.gallery.mkdir(parents=True, exist_ok=True)
             box = (*DETAIL[sample], DETAIL_SIZE)
             sheet = detail_sheet((f"{sample} (original)", reference), list(bitmaps.items()), box, 3,
                                  columns=4, model=DotModel(radius=args.gallery_radius))
-            sheet.save(args.gallery / f"{sample}.jpg", quality=80, optimize=True)
+            sheet.save(args.gallery / f"{sample}-detail.jpg", quality=80, optimize=True)
+            full_sheet(sample, reference, bitmaps, DotModel(radius=args.gallery_radius)).save(
+                args.gallery / f"{sample}-full.jpg", quality=80, optimize=True)
         for n, radius in enumerate(args.radii):
             model = DotModel(radius=radius)
             maps = []
@@ -193,9 +202,6 @@ def main():
             if n == 0 and args.artifacts:
                 args.artifacts.mkdir(parents=True, exist_ok=True)
                 artifact_sheet(maps).save(args.artifacts / f"{sample}.png", optimize=True)
-
-    if args.gallery:
-        overview(references).save(args.gallery / "overview.jpg", quality=80, optimize=True)
 
     if args.csv:
         args.csv.parent.mkdir(parents=True, exist_ok=True)

@@ -159,23 +159,83 @@ Random grain (FFT mask) mostly stays blank.
 
 ##### Gallery
 
-Each sheet shows one 128×128-dot crop: the unadjusted original on top, then every method as a simulated print. The heat model uses the default radius 0.55, and the crop is enlarged 3×. The red boxes in the overview mark the crops:
+Two sheets per sample, both rendered by the heat model at the default radius 0.55:
 
-![Sample overview with crop positions](images/gallery/overview.jpg)
+- **Whole image:** the full print, averaged down to 384 pixels wide. This is roughly how it looks from a normal distance and shows tone and large-scale differences. The red box on the original marks the crop.
+- **Crop:** 128×128 dots enlarged 3×, so individual dots and dither patterns are visible.
 
-| | | | |
-| --- | --- | --- | --- |
-| [astronaut](images/gallery/astronaut.jpg) | [sally-ride](images/gallery/sally-ride.jpg) | [earthrise](images/gallery/earthrise.jpg) | [rocket](images/gallery/rocket.jpg) |
-| [coffee](images/gallery/coffee.jpg) | [chelsea](images/gallery/chelsea.jpg) | [camera](images/gallery/camera.jpg) | [patches](images/gallery/patches.jpg) |
+Jump to: [astronaut](#astronaut) · [sally-ride](#sally-ride) · [earthrise](#earthrise) · [rocket](#rocket) · [coffee](#coffee) · [chelsea](#chelsea) · [camera](#camera) · [patches](#patches)
 
-The dark sky of the rocket sample shows the artifacts most clearly:
-
-![Simulated prints of the rocket sample](images/gallery/rocket.jpg)
+The dark sky of the rocket sample shows the artifacts most clearly (see its crop below):
 
 - Floyd–Steinberg, serpentine FS and Ostromoukhov: vertical and horizontal stripes.
 - Atkinson: diagonal lines.
 - JJN: worms.
 - Zhou–Fang: the most even texture.
+
+###### astronaut
+
+Portrait, detailed background.
+
+![astronaut: whole image, simulated prints](images/gallery/astronaut-full.jpg)
+
+![astronaut: enlarged crop, simulated prints](images/gallery/astronaut-detail.jpg)
+
+###### sally-ride
+
+Portrait, smooth backdrop.
+
+![sally-ride: whole image, simulated prints](images/gallery/sally-ride-full.jpg)
+
+![sally-ride: enlarged crop, simulated prints](images/gallery/sally-ride-detail.jpg)
+
+###### earthrise
+
+Dark scene, large black area.
+
+![earthrise: whole image, simulated prints](images/gallery/earthrise-full.jpg)
+
+![earthrise: enlarged crop, simulated prints](images/gallery/earthrise-detail.jpg)
+
+###### rocket
+
+Dark sky gradient.
+
+![rocket: whole image, simulated prints](images/gallery/rocket-full.jpg)
+
+![rocket: enlarged crop, simulated prints](images/gallery/rocket-detail.jpg)
+
+###### coffee
+
+Wood grain, white cup, dark saucer.
+
+![coffee: whole image, simulated prints](images/gallery/coffee-full.jpg)
+
+![coffee: enlarged crop, simulated prints](images/gallery/coffee-detail.jpg)
+
+###### chelsea
+
+Fur texture.
+
+![chelsea: whole image, simulated prints](images/gallery/chelsea-full.jpg)
+
+![chelsea: enlarged crop, simulated prints](images/gallery/chelsea-detail.jpg)
+
+###### camera
+
+Grass texture, plain sky.
+
+![camera: whole image, simulated prints](images/gallery/camera-full.jpg)
+
+![camera: enlarged crop, simulated prints](images/gallery/camera-detail.jpg)
+
+###### patches
+
+Ten uniform grey patches.
+
+![patches: whole image, simulated prints](images/gallery/patches-full.jpg)
+
+![patches: enlarged crop, simulated prints](images/gallery/patches-detail.jpg)
 
 ##### Numbers
 
