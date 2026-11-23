@@ -37,7 +37,10 @@ from thermal_photo_box.evaluate import evaluate
 from thermal_photo_box.simulate import DEFAULT_RADIUS, DotModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compare_dither import METHODS, detail_sheet  # noqa: E402
+from compare_dither import LABELS, METHODS, detail_sheet  # noqa: E402
+from extra_dither import EXTRA_LABELS, EXTRA_METHODS  # noqa: E402
+
+LABELS.update(EXTRA_LABELS)
 from evaluate_dither import artifact_sheet  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -108,7 +111,7 @@ def fetch(name, cache):
 
 
 def dither_all(gray, external):
-    bitmaps = {name: method(gray) for name, method in METHODS.items()}
+    bitmaps = {name: method(gray) for name, method in {**METHODS, **EXTRA_METHODS}.items()}
     if external:
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp) / "gray.png"
@@ -122,13 +125,12 @@ def dither_all(gray, external):
     return bitmaps
 
 
-def full_sheet(sample, reference, bitmaps, model, panel=384, columns=3):
+def full_sheet(sample, reference, bitmaps, model, panel=384, columns=5):
     """Whole image: the original (gallery crop outlined) and every method as a simulated print.
 
     Each print is simulated at 4 samples per dot and averaged down to `panel` pixels
     wide in linear reflectance, roughly how the print looks from a normal distance.
     """
-    from compare_dither import LABELS
     from thermal_photo_box.simulate import linear_to_srgb, simulate_reflectance
 
     h = round(reference.height * panel / reference.width)
@@ -187,7 +189,7 @@ def main():
             args.gallery.mkdir(parents=True, exist_ok=True)
             box = (*DETAIL[sample], DETAIL_SIZE)
             sheet = detail_sheet((f"{sample} (original)", reference), list(bitmaps.items()), box, 3,
-                                 columns=4, model=DotModel(radius=args.gallery_radius))
+                                 columns=5, model=DotModel(radius=args.gallery_radius))
             sheet.save(args.gallery / f"{sample}-detail.jpg", quality=80, optimize=True)
             full_sheet(sample, reference, bitmaps, DotModel(radius=args.gallery_radius)).save(
                 args.gallery / f"{sample}-full.jpg", quality=80, optimize=True)

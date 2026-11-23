@@ -250,16 +250,64 @@ All numbers are in [benchmark.csv](benchmark.csv). Zhou–Fang uses random noise
 | Bayer 8×8 | +8.2 / −9.3 | 2.4 / 8.3 | 4.8 / 7.2 | 0.05 / 0.18 | 0.380 / 0.298 |
 | FFT mask | +12.2 / +0.4 | 3.9 / 1.8 | 9.7 / 10.9 | 0.19 / 0.21 | 0.056 / 0.054 |
 | Ostromoukhov | +11.2 / −3.5 | 3.3 / 3.7 | 4.8 / 5.8 | 0.27 / 0.34 | 0.045 / 0.084 |
-| Zhou–Fang | +10.8 / −3.9 | 3.3 / 3.3 | 4.9 / 5.7 | 0.17 / 0.20 | 0.043 / 0.078 |
+| Zhou–Fang | +10.8 / −3.9 | 3.3 / 3.3 | 4.9 / 5.7 | 0.17 / 0.20 | 0.044 / 0.077 |
 
 How consistent the rankings are across the eight images:
 
-- **The best method depends on the radius.** At 0.55, Floyd–Steinberg or serpentine FS has the lowest tone error among the error-diffusion methods on seven of eight images; on the rocket, Zhou–Fang does. At 0.65, the order reverses: JJN and Zhou–Fang have lower tone error than Floyd–Steinberg on all eight images, and FS prints darker than the original on all eight. The model cannot pick a winner until the radius is measured on paper.
+- **The best method depends on the radius.** At 0.55, Floyd–Steinberg or serpentine FS has the lowest tone error among the error-diffusion methods on all eight images. At 0.65, the order reverses: JJN and Zhou–Fang have lower tone error than Floyd–Steinberg on all eight images, and FS prints darker than the original on all eight. The model cannot pick a winner until the radius is measured on paper.
 - **At 0.65, JJN is the most tone-neutral error-diffusion method.** Its bias stays within −4.6 to +1.8 L\*. Floyd–Steinberg ranges from −13.0 to −1.0.
 - **Zhou–Fang is the least directional error-diffusion method** on all eight images at 0.65 and on six of eight at 0.55.
 - **Ostromoukhov** has the highest mean directional score at 0.65 and is the most directional method on four of the eight images.
 - **FFT mask** has the lowest tone error and the highest texture on every image at 0.65: coarse grain that averages out.
 - **Bayer** has the highest periodic score on all eight images at 0.55 and on seven at 0.65. It is the least directional at 0.55, because a grid has no single direction.
+
+#### More methods (experimental)
+
+`experiments/extra_dither.py` adds 16 methods that were never printed. They are included in the gallery above and in [benchmark.csv](benchmark.csv):
+
+| Method | What it is |
+| --- | --- |
+| Stucki, Burkes, Sierra, Two-row Sierra, Sierra Lite, Shiau–Fan | other error-diffusion kernels |
+| JJN / Atkinson + noise 32, 64 | blue-noise threshold modulation (Knox & Eschbach): the threshold varies by ±16 or ±32 grey levels |
+| Green noise 0.6 | Levien's output-dependent feedback with a blue-noise threshold, meant to form small dot clusters |
+| JJN on 2×2 cells | JJN at half resolution, each dot printed as a 2×2 cluster |
+| Void-and-cluster | ordered dither with an optimised 64×64 blue-noise mask (Ulichney) |
+| Riemersma | error diffusion along a Hilbert curve |
+| DBS | direct binary search: iterative toggles that minimise the S-CIELAB error, starting from JJN. No swaps and no printer model |
+| Clustered dot 45° | newspaper-style halftone screen, 6-dot period |
+
+Mean over the eight samples, heat model, radius 0.55 / 0.65:
+
+| Method | bias | tone | texture | directional | periodic |
+| --- | --- | --- | --- | --- | --- |
+| JJN (for reference) | +12.2 / −0.6 | 3.7 / 2.7 | 5.4 / 6.1 | 0.27 / 0.25 | 0.056 / 0.065 |
+| Atkinson (for reference) | +11.1 / −0.1 | 4.3 / 5.5 | 4.5 / 5.2 | 0.31 / 0.29 | 0.110 / 0.122 |
+| Stucki | +10.1 / −5.3 | 2.7 / 5.6 | 4.6 / 6.2 | 0.27 / 0.29 | 0.046 / 0.111 |
+| Burkes | +9.9 / −5.8 | 2.5 / 5.5 | 4.3 / 6.1 | 0.27 / 0.31 | 0.047 / 0.115 |
+| Sierra | +12.2 / −0.8 | 3.7 / 2.8 | 5.2 / 6.0 | 0.28 / 0.26 | 0.057 / 0.065 |
+| Two-row Sierra | +11.6 / −2.0 | 3.4 / 3.3 | 5.1 / 6.3 | 0.31 / 0.30 | 0.053 / 0.076 |
+| Sierra Lite | +10.6 / −4.7 | 2.9 / 4.7 | 4.9 / 6.3 | 0.50 / 0.45 | 0.044 / 0.105 |
+| Shiau–Fan | +9.7 / −6.4 | 2.5 / 6.0 | 4.2 / 5.9 | 0.28 / 0.36 | 0.043 / 0.128 |
+| JJN + noise 32 | +12.0 / −1.1 | 3.6 / 2.8 | 5.4 / 6.1 | 0.21 / 0.21 | 0.051 / 0.056 |
+| JJN + noise 64 | +11.9 / −1.4 | 3.5 / 2.9 | 5.5 / 6.2 | 0.16 / 0.18 | 0.048 / 0.062 |
+| Atkinson + noise 32 | +11.2 / −0.3 | 4.0 / 5.4 | 4.7 / 5.4 | 0.25 / 0.24 | 0.101 / 0.103 |
+| Atkinson + noise 64 | +11.3 / −0.6 | 3.7 / 5.0 | 4.9 / 5.6 | 0.20 / 0.19 | 0.097 / 0.092 |
+| Green noise 0.6 | +10.6 / −4.7 | 2.8 / 4.6 | 4.6 / 5.8 | 0.23 / 0.25 | 0.042 / 0.095 |
+| JJN on 2×2 cells | +14.8 / +9.5 | 5.1 / 3.5 | 14.7 / 14.1 | 0.30 / 0.32 | 0.070 / 0.070 |
+| Void-and-cluster | +11.6 / −2.5 | 3.3 / 3.3 | 5.1 / 6.0 | 0.15 / 0.19 | 0.078 / 0.092 |
+| Riemersma | +11.3 / −2.7 | 3.4 / 4.6 | 6.4 / 7.8 | 0.16 / 0.19 | 0.033 / 0.043 |
+| DBS | +11.7 / −1.7 | 3.7 / 2.9 | 4.8 / 5.9 | 0.27 / 0.24 | 0.100 / 0.076 |
+| Clustered dot 45° | +14.3 / +10.0 | 5.0 / 3.9 | 17.7 / 17.2 | 0.05 / 0.06 | 0.569 / 0.543 |
+
+Observations:
+
+- **Threshold noise does what it should.** With noise 64, the directional score drops from 0.25 to 0.18 for JJN and from 0.29 to 0.19 for Atkinson (radius 0.65). Tone error barely changes, and texture rises by 0.1–0.4. On the patch chart, Atkinson's diagonal lines in the light patches disappear, and JJN's regular lattice in the light patches is partly broken up. These are the closest to "JJN or Atkinson, with fewer patterns".
+- **Other kernels bring nothing new.** Sierra behaves almost exactly like JJN. Stucki, Burkes and Shiau–Fan behave like Floyd–Steinberg: they print darker at 0.65 and get more periodic. Sierra Lite is the most directional method tested (0.45–0.50).
+- **Clustered dots are robust to dot gain but too coarse.** JJN on 2×2 cells and the 45° screen change much less between radius 0.55 and 0.65 (bias +14.8 → +9.5 and +14.3 → +10.0; JJN: +12.2 → −0.6). That is why clustered dots are used on printers with unstable dot size. At 203 dpi, however, their texture is two to three times coarser than error diffusion.
+- **The green-noise attempt failed.** In raster order the feedback forms short streaks instead of clusters, and the result behaves like Floyd–Steinberg. A green-noise mask would be the next thing to try.
+- **Void-and-cluster** has the lowest directional score at 0.55 apart from the two grid-like screens (Bayer and clustered dot), and middle-of-the-field tone. It is far better than the earlier FFT mask (texture 6.0 against 10.9 at 0.65), but the repeating 64×64 tile raises its periodic score.
+- **Riemersma** has the lowest periodic score of all and little directional structure, but it is grainier and less tone-accurate.
+- **DBS** without a printer model is only on a par with JJN. To use its strength, the print simulation would have to be part of its objective (model-based DBS).
 
 Limits: eight images, uncalibrated parameters, and an approximate vision model. S-CIELAB is a standard model, but the directional and periodic measures are this project's own heuristics. They are checked against synthetic stripes and noise (`tests/test_evaluate.py`) and by eye against the maps, not against viewer ratings.
 
@@ -276,7 +324,7 @@ python experiments/evaluate_dither.py docs/sample/patches.png \
   $D/floyd.png $D/serpentine.png $D/jjn.png $D/atkinson.png $D/bayer.png $D/blue.png \
   --radii 0.55 0.65 --artifacts $D/artifacts.png      # add --model overlap for the other model
 
-# All eight samples, including Ostromoukhov and Zhou-Fang (about 3 minutes):
+# All eight samples and all 24 methods, including Ostromoukhov and Zhou-Fang (10-20 minutes):
 git clone --depth 1 https://github.com/dalpil/structure-aware-dithering /tmp/sad
 python experiments/benchmark.py --external /tmp/sad --csv docs/benchmark.csv \
   --gallery docs/images/gallery \

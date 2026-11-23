@@ -49,7 +49,7 @@ On the tested portrait and paper, **Jarvis–Judice–Ninke (JJN)** with density
 
 See [XP-80T experiment log](docs/experiments-xp80t.md) for the device parameters, density commands, settings, alternatives tested and limitations.
 
-For an on-screen comparison of the methods, see the [dithering comparison](docs/dither-comparison.md). It uses a public-domain sample photo and shows previews, not printed results. It also scores simulated prints against the original (perceptual tone and texture error) and maps dithering artifacts such as worms, diagonal lines and grids. A gallery shows simulated prints of every method on eight public-domain or CC0 samples.
+For an on-screen comparison of the methods, see the [dithering comparison](docs/dither-comparison.md). It uses a public-domain sample photo and shows previews, not printed results. It also scores simulated prints against the original (perceptual tone and texture error) and maps dithering artifacts such as worms, diagonal lines and grids. A gallery shows simulated prints of 24 methods, including 16 experimental ones that were never printed, on eight public-domain or CC0 samples.
 
 ![Enlarged crops of each dithering method](docs/images/astronaut/detail.png)
 
